@@ -1,0 +1,11 @@
+[package]
+name = "kernel-from-scratch"
+version = "0.1.0"
+
+[dependencies]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
