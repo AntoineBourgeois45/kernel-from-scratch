@@ -1,11 +1,13 @@
 [package]
 name = "kernel-from-scratch"
 version = "0.1.0"
-
-[dependencies]
+edition = "2018"
 
 [profile.dev]
 panic = "abort"
 
 [profile.release]
 panic = "abort"
+
+[unstable]
+build-std = ["core", "compiler_builtins"]
