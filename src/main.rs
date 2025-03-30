@@ -4,9 +4,6 @@
 #[cfg(target_os = "linux")]
 compile_error!("You are not using a cross-compiler, you will most certainly run into trouble");
 
-#[cfg(not(target_arch = "x86"))]
-compile_error!("This tutorial needs to be compiled with a ix86-elf compiler");
-
 use core::panic::PanicInfo;
 use core::ptr::write_volatile;
 
