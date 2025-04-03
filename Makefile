@@ -7,7 +7,7 @@ KERNEL_BIN := $(TARGET).bin
 
 RUSTFLAGS := -C panic=abort
 
-CARGO_OPTS := -Z build-std=core,compiler_builtins --target=target.json
+CARGO_OPTS := -Z build-std=core,compiler_builtins -Z build-std-features=panic_immediate_abort --target=target.json
 
 .PHONY: all clean run
 
@@ -23,7 +23,7 @@ $(TARGET):
 
 $(KERNEL_ELF): boot.o $(TARGET)
 	@echo "Linking : creating $(KERNEL_ELF)"
-	ld -m elf_i386 -T linker.ls -o $(KERNEL_ELF) boot.o $(CARGO_BIN)
+	i386-elf-ld -T linker.ls -o $(KERNEL_ELF) boot.o $(CARGO_BIN)
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	@echo "Objcopy : converting $(KERNEL_ELF) -> $(KERNEL_BIN)"

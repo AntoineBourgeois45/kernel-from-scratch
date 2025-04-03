@@ -1,7 +1,11 @@
 [package]
-name = "kernel-from-scratch"
+name = "kernel"
 version = "0.1.0"
 edition = "2018"
+
+[[bin]]
+name = "kernel"
+path = "src/main.rs"
 
 [profile.dev]
 panic = "abort"
@@ -15,3 +19,5 @@ build-std-features = ["compiler-builtins-mem"]
 
 [build]
 target = "target.json"
+
+[dependencies]
