@@ -1,48 +1,55 @@
-NAME	:= kernel.iso
-TARGET   := kernel
-CARGO_BIN := target/debug/$(TARGET)
+NAME         := kernel.iso
+TARGET       := kernel
+BUILD_DIR    := build
+TARGET_JSON  := i386-unknown-none.json
+BOOT_OBJ     := $(BUILD_DIR)/boot.o
+KERNEL_ELF   := $(TARGET).elf
+KERNEL_BIN   := $(TARGET).bin
+KERNEL_O     := target/i386-unknown-none/debug/deps/kernel-*.o
 
-KERNEL_ELF := $(TARGET).elf
-KERNEL_BIN := $(TARGET).bin
-
-RUSTFLAGS := -C panic=abort
-
-CARGO_OPTS := -Z build-std=core,compiler_builtins -Z build-std-features=panic_immediate_abort --target=target.json
+RUST_TOOLCHAIN	:= +nightly
+RUSTFLAGS     	:= -C panic=abort -C relocation-model=static
+BUILD_STD 		:= -Z build-std=core,compiler_builtins -Z build-std-features=compiler-builtins-mem
 
 .PHONY: all clean run
 
 all: $(NAME)
 
-boot.o: boot/boot.asm
-	@echo "Compiling boot.asm -> boot.o"
-	nasm -f elf32 boot/boot.asm -o boot.o
+$(BOOT_OBJ): boot/boot.asm
+	@echo "Compiling boot.asm -> $@"
+	@mkdir -p $(BUILD_DIR)
+	nasm -f elf32 $< -o $@
 
-$(TARGET):
-	@echo "Cargo compilation"
-	RUSTFLAGS="$(RUSTFLAGS)" cargo build $(CARGO_OPTS)
+$(KERNEL_ELF): $(BOOT_OBJ) src/main.rs Cargo.toml $(TARGET_JSON)
+	@echo "Building kernel ELF -> $@"
+	@cargo $(RUST_TOOLCHAIN) rustc \
+		--target $(TARGET_JSON) \
+		$(BUILD_STD) \
+		--profile dev \
+		-- --emit=obj \
+		$(RUSTFLAGS)
 
-$(KERNEL_ELF): boot.o $(TARGET)
-	@echo "Linking : creating $(KERNEL_ELF)"
-	i386-elf-ld -T linker.ls -o $(KERNEL_ELF) boot.o $(CARGO_BIN)
+	@echo "Linking kernel ELF -> $@"
+	ld -m elf_i386 -T boot/linker.ls $(BOOT_OBJ) $(KERNEL_O) -o $@
 
 $(KERNEL_BIN): $(KERNEL_ELF)
-	@echo "Objcopy : converting $(KERNEL_ELF) -> $(KERNEL_BIN)"
-	objcopy -O binary $(KERNEL_ELF) $(KERNEL_BIN)
+	@echo "Objcopy -> $@"
+	objcopy -O binary $< $@
 
 $(NAME): $(KERNEL_BIN)
-	@echo "Creating $(NAME)"
-	mkdir -p isodir/boot/grub
+	@echo "Creating ISO -> $@"
+	@mkdir -p isodir/boot/grub
 	cp $(KERNEL_BIN) isodir/boot/$(KERNEL_BIN)
-	cp boot/grub.cfg isodir/boot/grub/grub.cfg
-	grub-mkrescue -o $(NAME) isodir
-	@echo "ISO image $(NAME) created"
-	@echo "You can run it with QEMU: make run"
+	cp boot/grub.cfg isodir/boot/grub/
+	grub-mkrescue -o $@ isodir
 
 run: all
-	@echo "Starting with QEMU..."
-	qemu-system-i386 -kernel $(KERNEL_BIN)
+	@echo "Launching QEMU -> $(NAME)"
+	qemu-system-i386 -cdrom $(NAME)
 
 clean:
-	@echo "Cleaning..."
+	@echo "Cleaning build artifacts"
+	rm -rf $(BUILD_DIR) $(KERNEL_ELF) $(KERNEL_BIN) isodir
 	cargo clean
-	rm -f boot.o $(KERNEL_ELF) $(KERNEL_BIN)
+
+re: clean all

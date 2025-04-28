@@ -103,7 +103,7 @@ pub unsafe extern "C" fn memcpy(dest: *mut u8, src: *const u8, n: usize) -> *mut
 }
 
 #[no_mangle]
-pub extern "C" fn _start() -> ! {
+pub extern "C" fn kernel_main() -> ! {
     let mut terminal = Terminal {
         row: 0,
         column: 0,

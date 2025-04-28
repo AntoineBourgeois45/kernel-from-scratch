@@ -16,12 +16,14 @@ stack_bottom:
     resb 16384
 stack_top:
 
+extern kernel_main
+
 section .text
 global _start
 _start:
 	mov esp, stack_top
 
-	call _start
+	call kernel_main
 
 	cli
 .loop:
