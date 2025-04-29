@@ -6,9 +6,12 @@
   "target-pointer-width": "32",
   "target-c-int-width": "32",
   "os": "none",
-  "executables": true,
   "linker-flavor": "ld",
   "linker": "ld",
   "panic-strategy": "abort",
-  "disable-redzone": true
+  "disable-redzone": true,
+  "features": "-mmx,-sse",
+  "pre-link-args": {
+    "ld": ["-m","elf_i386"]
+  }
 }

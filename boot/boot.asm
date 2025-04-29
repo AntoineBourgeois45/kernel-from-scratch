@@ -5,13 +5,13 @@
 %define CHECKSUM  -(MAGIC + FLAGS)
 
 section .multiboot
-	align 4
+align 4
 	dd MAGIC
 	dd FLAGS
 	dd CHECKSUM
 
 section .bss
-    align 16
+align 16
 stack_bottom:
     resb 16384
 stack_top:
@@ -20,6 +20,7 @@ extern kernel_main
 
 section .text
 global _start
+
 _start:
 	mov esp, stack_top
 

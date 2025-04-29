@@ -1,9 +1,6 @@
 #![no_std]
 #![no_main]
 
-#[cfg(target_os = "linux")]
-compile_error!("You are not using a cross-compiler, you will most certainly run into trouble");
-
 use core::panic::PanicInfo;
 use core::ptr::write_volatile;
 
@@ -113,7 +110,15 @@ pub extern "C" fn kernel_main() -> ! {
 
     unsafe {
         terminal.initialize();
-        terminal.write_str("Hello, World!");
+        terminal.write_str("    ###    ####
+   ####   ##  ##
+  ## ##       ##
+ ##  ##     ###
+ #######   ##
+     ##   ##  ##
+     ##   ######
+
+");
     }
 
     loop {}

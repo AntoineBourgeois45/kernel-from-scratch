@@ -3,9 +3,10 @@ name = "kernel"
 version = "0.1.0"
 edition = "2018"
 
-[[bin]]
+[lib]
 name = "kernel"
 path = "src/main.rs"
+crate-type = ["staticlib"]
 
 [profile.dev]
 panic = "abort"
