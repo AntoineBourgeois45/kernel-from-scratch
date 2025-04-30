@@ -1,95 +1,12 @@
 #![no_std]
 #![no_main]
 
+pub mod vga;
+pub mod ps2;
+pub mod interrupts;
+
 use core::panic::PanicInfo;
-use core::ptr::write_volatile;
-
-#[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum VgaColor {
-    Black = 0,
-    Blue = 1,
-    Green = 2,
-    Cyan = 3,
-    Red = 4,
-    Magenta = 5,
-    Brown = 6,
-    LightGrey = 7,
-    DarkGrey = 8,
-    LightBlue = 9,
-    LightGreen = 10,
-    LightCyan = 11,
-    LightRed = 12,
-    LightMagenta = 13,
-    LightBrown = 14,
-    White = 15,
-}
-
-#[inline]
-pub const fn vga_entry_color(fg: VgaColor, bg: VgaColor) -> u8 {
-    (bg as u8) << 4 | (fg as u8)
-}
-
-#[inline]
-pub const fn vga_entry(c: u8, color: u8) -> u16 {
-    c as u16 | (color as u16) << 8
-}
-
-pub const VGA_WIDTH: usize = 80;
-pub const VGA_HEIGHT: usize = 25;
-
-pub struct Terminal {
-    row: usize,
-    column: usize,
-    color: u8,
-    buffer: *mut u16,
-}
-
-impl Terminal {
-    pub unsafe fn initialize(&mut self) {
-        self.row = 0;
-        self.column = 0;
-        self.color = vga_entry_color(VgaColor::LightGrey, VgaColor::Black);
-        self.buffer = 0xb8000 as *mut u16;
-        for y in 0..VGA_HEIGHT {
-            for x in 0..VGA_WIDTH {
-                let index = y * VGA_WIDTH + x;
-                write_volatile(self.buffer.add(index), vga_entry(b' ', self.color));
-            }
-        }
-    }
-
-    pub fn set_color(&mut self, color: u8) {
-        self.color = color;
-    }
-
-    pub unsafe fn put_entry_at(&mut self, c: u8, color: u8, x: usize, y: usize) {
-        let index = y * VGA_WIDTH + x;
-        write_volatile(self.buffer.add(index), vga_entry(c, color));
-    }
-
-    pub unsafe fn put_char(&mut self, c: u8) {
-        self.put_entry_at(c, self.color, self.column, self.row);
-        self.column += 1;
-        if self.column == VGA_WIDTH {
-            self.column = 0;
-            self.row += 1;
-            if self.row == VGA_HEIGHT {
-                self.row = 0;
-            }
-        }
-    }
-
-    pub unsafe fn write(&mut self, data: &[u8]) {
-        for &byte in data {
-            self.put_char(byte);
-        }
-    }
-
-    pub unsafe fn write_str(&mut self, s: &str) {
-        self.write(s.as_bytes());
-    }
-}
+use crate::vga::terminal::Terminal;
 
 #[no_mangle]
 pub unsafe extern "C" fn memcpy(dest: *mut u8, src: *const u8, n: usize) -> *mut u8 {
@@ -97,6 +14,20 @@ pub unsafe extern "C" fn memcpy(dest: *mut u8, src: *const u8, n: usize) -> *mut
         *dest.add(i) = *src.add(i);
     }
     dest
+}
+
+#[no_mangle]
+pub extern "C" fn handle_interrupt_wrapper(interrupt_num: u8) {
+    unsafe {
+        let mut terminal = Terminal {
+            row: 0,
+            column: 0,
+            color: 0,
+            buffer: 0xb8000 as *mut u16,
+        };
+        
+        interrupts::pic::handle_interrupt(&mut terminal, interrupt_num);
+    }
 }
 
 #[no_mangle]
@@ -116,9 +47,19 @@ pub extern "C" fn kernel_main() -> ! {
  ##  ##     ###
  #######   ##
      ##   ##  ##
-     ##   ######
+     ##   ######\n\n");
 
-");
+        terminal.write_str("Initializing mouse...\n");
+
+        if ps2::mouse::init_mouse() {
+            terminal.write_str("Mouse initialized successfully.\n");
+        } else {
+            terminal.write_str("Mouse initialization failed.\n");
+        }
+
+        interrupts::pic::init(&mut terminal);
+
+        terminal.write_str("Interrupts initialized.\n");
     }
 
     loop {}
