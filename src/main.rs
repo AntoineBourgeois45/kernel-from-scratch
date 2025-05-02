@@ -6,6 +6,8 @@ pub mod ps2;
 pub mod interrupts;
 
 use core::panic::PanicInfo;
+use vga::terminal::LogLevel;
+
 use crate::vga::terminal::Terminal;
 
 #[no_mangle]
@@ -41,25 +43,25 @@ pub extern "C" fn kernel_main() -> ! {
 
     unsafe {
         terminal.initialize();
-        terminal.write_str("    ###    ####
+        terminal.print("    ###    ####
    ####   ##  ##
   ## ##       ##
  ##  ##     ###
  #######   ##
      ##   ##  ##
-     ##   ######\n\n");
+     ##   ######\n\n", LogLevel::Default);
 
-        terminal.write_str("Initializing mouse...\n");
+        terminal.print("Initializing mouse...\n", LogLevel::Trace);
 
-        if ps2::mouse::init_mouse() {
-            terminal.write_str("Mouse initialized successfully.\n");
-        } else {
-            terminal.write_str("Mouse initialization failed.\n");
-        }
+        // if ps2::mouse::init_mouse() {
+        //     terminal.write_str("Mouse initialized successfully.\n");
+        // } else {
+        //     terminal.write_str("Mouse initialization failed.\n");
+        // }
 
-        interrupts::pic::init(&mut terminal);
+        // interrupts::pic::init(&mut terminal);
 
-        terminal.write_str("Interrupts initialized.\n");
+        // terminal.write_str("Interrupts initialized.\n");
     }
 
     loop {}

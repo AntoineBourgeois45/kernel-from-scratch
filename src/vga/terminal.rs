@@ -21,6 +21,40 @@ pub enum VgaColor {
     White = 15,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LogLevel {
+    Default,
+    Error,
+    Warning,
+    Info,
+    Debug,
+    Trace,
+}
+
+impl LogLevel {
+    pub const fn prefix(self) -> Option<&'static str> {
+        match self {
+            LogLevel::Error => Some("error: "),
+            LogLevel::Warning => Some("warning: "),
+            LogLevel::Info => Some("info: "),
+            LogLevel::Debug => Some("debug: "),
+            LogLevel::Trace => Some("trace: "),
+            LogLevel::Default => None,
+        }
+    }
+    pub const fn color(self) -> u8 {
+        match self {
+            LogLevel::Error => vga_entry_color(VgaColor::LightRed, VgaColor::Black),
+            LogLevel::Warning => vga_entry_color(VgaColor::LightBrown, VgaColor::Black),
+            LogLevel::Info => vga_entry_color(VgaColor::LightGreen, VgaColor::Black),
+            LogLevel::Debug => vga_entry_color(VgaColor::LightBlue, VgaColor::Black),
+            LogLevel::Trace => vga_entry_color(VgaColor::LightMagenta, VgaColor::Black),
+            LogLevel::Default => vga_entry_color(VgaColor::LightGrey, VgaColor::Black),
+        }
+    }
+}
+
+
 #[inline]
 pub const fn vga_entry_color(fg: VgaColor, bg: VgaColor) -> u8 {
     (bg as u8) << 4 | (fg as u8)
@@ -45,7 +79,7 @@ impl Terminal {
     pub unsafe fn initialize(&mut self) {
         self.row = 0;
         self.column = 0;
-        self.color = vga_entry_color(VgaColor::LightGrey, VgaColor::Black);
+        self.color = vga_entry_color(VgaColor::White, VgaColor::Black);
         self.buffer = 0xb8000 as *mut u16;
         for y in 0..VGA_HEIGHT {
             for x in 0..VGA_WIDTH {
@@ -114,5 +148,16 @@ impl Terminal {
 
     pub unsafe fn write_str(&mut self, s: &str) {
         self.write(s.as_bytes());
+    }
+
+    pub unsafe fn print(&mut self, msg: &str, flag: LogLevel) {
+        let old_color = self.color;
+        if let Some(prefix) = flag.prefix() {
+            self.set_color(flag.color());
+            self.write_str(prefix);
+        }
+        self.write_str(msg);
+        self.write_str("\n");
+        self.set_color(old_color);
     }
 }
