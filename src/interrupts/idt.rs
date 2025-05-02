@@ -31,13 +31,16 @@ static mut IDT: [IdtEntry; 256] = [IdtEntry {
 }; 256];
 
 pub unsafe fn init_idt() {
-    let handler_addr = keyboard_handler as u64;
-    IDT[32+1].offset_low = handler_addr as u16;
-    IDT[32+1].selector = 0x08;
-    IDT[32+1].ist = 0;
-    IDT[32+1].type_attr = 0x8E;
-    IDT[32+1].offset_mid = (handler_addr >> 16) as u16;
-    IDT[32+1].offset_high = (handler_addr >> 32) as u32;
+    let kb_addr = keyboard_handler as u64;
+    IDT[33] = IdtEntry {
+    offset_low:  kb_addr as u16,
+    selector:    0x08,
+    ist:         0,
+    type_attr:   0x8E,
+    offset_mid:  (kb_addr >> 16) as u16,
+    offset_high: (kb_addr >> 32) as u32,
+    zero:        0,
+    };
 
     let idtr = Idtr {
         limit: (core::mem::size_of::<[IdtEntry; 256]>() - 1) as u16,

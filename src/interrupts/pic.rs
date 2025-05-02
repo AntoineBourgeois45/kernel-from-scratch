@@ -22,10 +22,11 @@ pub unsafe fn inb(port: u16) -> u8 {
 }
 
 pub unsafe fn init(terminal: &mut Terminal) {
-    terminal.print("Initializing IDT...\n", LogLevel::Trace);
-    init_idt();
     terminal.print("Initializing PIC...\n", LogLevel::Trace);
     init_pic(32, 40);
+    terminal.print("Initializing IDT...\n", LogLevel::Trace);
+    init_idt();
+    
     
     asm!("sti", options(nomem, nostack));
 }
