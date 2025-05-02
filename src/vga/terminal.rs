@@ -54,7 +54,6 @@ impl LogLevel {
     }
 }
 
-
 #[inline]
 pub const fn vga_entry_color(fg: VgaColor, bg: VgaColor) -> u8 {
     (bg as u8) << 4 | (fg as u8)
