@@ -5,43 +5,50 @@ use crate::ps2::keyboard::keyboard_handler;
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
 pub struct IdtEntry {
-    pub offset_low: u16,
-    pub selector: u16,
-    pub ist: u8,
-    pub type_attr: u8,
-    pub offset_mid: u16,
-    pub offset_high: u32,
-    pub zero: u32,
+    pub isr_low: u16,
+    pub kernel_cs: u16,
+    pub reserved: u8,
+    pub attributes: u8,
+    pub isr_high: u16
 }
 
 #[repr(C, align(16))]
 pub struct Idtr {
     pub limit: u16,
-    pub base: u64,
+    pub base: u32,
 }
 
 static mut IDT: [IdtEntry; 256] = [IdtEntry {
-    offset_low: 0,
-    selector: 0,
-    ist: 0,
-    type_attr: 0,
-    offset_mid: 0,
-    offset_high: 0,
-    zero: 0,
+    isr_low: 0,
+    kernel_cs: 0,
+    reserved: 0,
+    attributes: 0,
+    isr_high: 0,
 }; 256];
 
+static mut IDTR: Idtr = Idtr {
+    limit: 0,
+    base: 0,
+};
+
+pub unsafe fn set_handler(index: usize, handler_function_addr: u32, selector: u16, attributes: u8) {
+    IDT[index].isr_low = handler_function_addr as u16;
+    IDT[index].kernel_cs = selector;
+    IDT[index].reserved = 0;
+    IDT[index].attributes = attributes;
+    IDT[index].isr_high = (handler_function_addr >> 16) as u16;
+}
+
 pub unsafe fn init_idt() {
-    let handler_addr = keyboard_handler as u64;
-    IDT[32+1].offset_low = handler_addr as u16;
-    IDT[32+1].selector = 0x08;
-    IDT[32+1].ist = 0;
-    IDT[32+1].type_attr = 0x8E;
-    IDT[32+1].offset_mid = (handler_addr >> 16) as u16;
-    IDT[32+1].offset_high = (handler_addr >> 32) as u32;
+    for i in 0..256 {
+        set_handler(i, 0, 0, 0);
+    }
+
+    set_handler(33, keyboard_handler as u32, 0x08, 0x8E);
 
     let idtr = Idtr {
         limit: (core::mem::size_of::<[IdtEntry; 256]>() - 1) as u16,
-        base: &raw const IDT as *const _ as u64,
+        base: &raw const IDT as *const _ as u32,
     };
 
     asm!(

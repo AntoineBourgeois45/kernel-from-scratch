@@ -1,6 +1,6 @@
 use core::arch::asm;
 
-use crate::{interrupts::pic::{inb, outb}, ps2::controller::{ps2_read_data, ps2_send_command, ps2_send_data, PS2_CMD_DISABLE_SECOND_PORT, PS2_CMD_ENABLE_SECOND_PORT, PS2_CMD_READ_CONFIG, PS2_CMD_TEST_SECOND_PORT, PS2_CMD_WRITE_CONFIG, PS2_CMD_WRITE_TO_SECOND_PORT, PS2_DATA}, vga::terminal::{Terminal, VGA_HEIGHT, VGA_WIDTH}};
+use crate::{interrupts::io::{inb, outb}, ps2::controller::{ps2_read_data, ps2_send_command, ps2_send_data, PS2_CMD_DISABLE_SECOND_PORT, PS2_CMD_ENABLE_SECOND_PORT, PS2_CMD_READ_CONFIG, PS2_CMD_TEST_SECOND_PORT, PS2_CMD_WRITE_CONFIG, PS2_CMD_WRITE_TO_SECOND_PORT, PS2_DATA}, vga::terminal::{Terminal, VGA_HEIGHT, VGA_WIDTH}};
 
 const MOUSE_CMD_RESET: u8 = 0xFF;
 const MOUSE_CMD_SET_DEFAULTS: u8 = 0xF6;

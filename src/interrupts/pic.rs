@@ -1,6 +1,6 @@
 use core::arch::asm;
 
-use crate::{interrupts::idt::init_idt, ps2::mouse, vga::terminal::{LogLevel, Terminal}};
+use crate::{interrupts::{idt::init_idt, io::outb}, ps2::mouse, vga::terminal::{LogLevel, Terminal}};
 
 pub const PIC1_CMD: u16 = 0x20;
 const PIC1_DATA: u16 = 0x21;
@@ -10,16 +10,6 @@ const PIC2_DATA: u16 = 0xA1;
 const ICW1_INIT: u8 = 0x11;
 const ICW1_ICW4: u8 = 0x01;
 const ICW4_8086: u8 = 0x01;
-
-pub unsafe fn outb(port: u16, value: u8) {
-    asm!("out dx, al", in("dx") port, in("al") value, options(nomem, nostack));
-}
-
-pub unsafe fn inb(port: u16) -> u8 {
-    let result: u8;
-    asm!("in al, dx", out("al") result, in("dx") port, options(nomem, nostack));
-    result
-}
 
 pub unsafe fn init(terminal: &mut Terminal) {
     terminal.print("Initializing IDT...\n", LogLevel::Trace);

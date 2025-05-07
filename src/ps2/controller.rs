@@ -1,5 +1,5 @@
 
-use crate::interrupts::pic::{inb, outb};
+use crate::interrupts::io::{inb, outb};
 
 const PS2_STATUS: u16 = 0x64;
 const PS2_CMD: u16 = 0x64;

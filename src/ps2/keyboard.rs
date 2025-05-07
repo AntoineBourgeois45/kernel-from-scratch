@@ -1,4 +1,4 @@
-use crate::interrupts::pic::{inb, outb, PIC1_CMD};
+use crate::interrupts::{io::{inb, outb}, pic::PIC1_CMD};
 
 #[no_mangle]
 pub extern "x86-interrupt" fn keyboard_handler(
