@@ -6,10 +6,11 @@ pub mod vga;
 pub mod ps2;
 pub mod interrupts;
 
-use core::panic::PanicInfo;
+use core::{arch::asm, panic::PanicInfo};
+use interrupts::{idt::init_idt, pic::init_pic};
 use vga::terminal::LogLevel;
 
-use crate::vga::terminal::Terminal;
+use crate::vga::terminal::terminal;
 
 #[no_mangle]
 pub unsafe extern "C" fn memcpy(dest: *mut u8, src: *const u8, n: usize) -> *mut u8 {
@@ -22,48 +23,43 @@ pub unsafe extern "C" fn memcpy(dest: *mut u8, src: *const u8, n: usize) -> *mut
 #[no_mangle]
 pub extern "C" fn handle_interrupt_wrapper(interrupt_num: u8) {
     unsafe {
-        let mut terminal = Terminal {
-            row: 0,
-            column: 0,
-            color: 0,
-            buffer: 0xb8000 as *mut u16,
-        };
-        
-        interrupts::pic::handle_interrupt(&mut terminal, interrupt_num);
+        interrupts::pic::handle_interrupt(interrupt_num);
+    }
+}
+
+fn force_division_by_zero() {
+    unsafe {
+        core::arch::asm!(
+            "mov eax, 42",
+            "mov ebx, 0",
+            "div ebx",
+            options(nostack, nomem, preserves_flags)
+        );
     }
 }
 
 #[no_mangle]
 pub extern "C" fn kernel_main() -> ! {
-    let mut terminal = Terminal {
-        row: 0,
-        column: 0,
-        color: 0,
-        buffer: 0xb8000 as *mut u16,
-    };
-
-    unsafe {
-        terminal.initialize();
-        terminal.print("    ###    ####
+    unsafe { terminal().initialize() }
+    kprint!(LogLevel::Default, 
+"    ###    ####
    ####   ##  ##
   ## ##       ##
  ##  ##     ###
  #######   ##
      ##   ##  ##
-     ##   ######\n\n", LogLevel::Default);
+     ##   ######
 
-        terminal.print("Initializing mouse...\n", LogLevel::Trace);
+");
 
-        // if ps2::mouse::init_mouse() {
-        //     terminal.write_str("Mouse initialized successfully.\n");
-        // } else {
-        //     terminal.write_str("Mouse initialization failed.\n");
-        // }
+    kprint!(LogLevel::Trace, "Initializing IDT...");
 
-        // interrupts::pic::init(&mut terminal);
-
-        // terminal.write_str("Interrupts initialized.\n");
+    unsafe {
+        init_pic(0x20, 0x28);
+        init_idt()
     }
+
+    force_division_by_zero();
 
     loop {}
 }

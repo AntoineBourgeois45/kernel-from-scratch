@@ -1,6 +1,6 @@
 use core::arch::asm;
 
-use crate::{interrupts::io::{inb, outb}, ps2::controller::{ps2_read_data, ps2_send_command, ps2_send_data, PS2_CMD_DISABLE_SECOND_PORT, PS2_CMD_ENABLE_SECOND_PORT, PS2_CMD_READ_CONFIG, PS2_CMD_TEST_SECOND_PORT, PS2_CMD_WRITE_CONFIG, PS2_CMD_WRITE_TO_SECOND_PORT, PS2_DATA}, vga::terminal::{Terminal, VGA_HEIGHT, VGA_WIDTH}};
+use crate::{interrupts::io::{inb, outb}, ps2::controller::{ps2_read_data, ps2_send_command, ps2_send_data, PS2_CMD_DISABLE_SECOND_PORT, PS2_CMD_ENABLE_SECOND_PORT, PS2_CMD_READ_CONFIG, PS2_CMD_TEST_SECOND_PORT, PS2_CMD_WRITE_CONFIG, PS2_CMD_WRITE_TO_SECOND_PORT, PS2_DATA}, vga::terminal::{terminal, VGA_HEIGHT, VGA_WIDTH}};
 
 const MOUSE_CMD_RESET: u8 = 0xFF;
 const MOUSE_CMD_SET_DEFAULTS: u8 = 0xF6;
@@ -108,7 +108,7 @@ fn setup_mouse_interrupt() {
     }
 }
 
-pub unsafe fn handle_mouse_data(data: u8, terminal: &mut Terminal) {
+pub unsafe fn handle_mouse_data(data: u8) {
     match MOUSE_STATE.packed_index {
         0 => {
             if data & 0x08 != 0 {
@@ -124,7 +124,7 @@ pub unsafe fn handle_mouse_data(data: u8, terminal: &mut Terminal) {
             MOUSE_STATE.packed_data[2] = data;
             MOUSE_STATE.packed_index = 0;
 
-            process_mouse_packet(terminal);
+            process_mouse_packet();
         }
         _ => {
             MOUSE_STATE.packed_index = 0;
@@ -132,7 +132,7 @@ pub unsafe fn handle_mouse_data(data: u8, terminal: &mut Terminal) {
     }
 }
 
-unsafe fn process_mouse_packet(terminal: &mut Terminal) {
+unsafe fn process_mouse_packet() {
     let packet0 = MOUSE_STATE.packed_data[0];
     let packet1 = MOUSE_STATE.packed_data[1];
     let packet2 = MOUSE_STATE.packed_data[2];
@@ -157,10 +157,10 @@ unsafe fn process_mouse_packet(terminal: &mut Terminal) {
     MOUSE_STATE.x = MOUSE_STATE.x.max(0).min((VGA_WIDTH - 1) as i32);
     MOUSE_STATE.y = MOUSE_STATE.y.max(0).min((VGA_HEIGHT - 1) as i32);
 
-    draw_mouse_cursor(terminal);
+    draw_mouse_cursor();
 }
 
-unsafe fn draw_mouse_cursor(terminal: &mut Terminal) {
+unsafe fn draw_mouse_cursor() {
     let x = MOUSE_STATE.x as usize;
     let y = MOUSE_STATE.y as usize;
 
@@ -184,12 +184,12 @@ unsafe fn draw_mouse_cursor(terminal: &mut Terminal) {
 
     let cursor_color = 0x4F;
 
-    terminal.put_entry_at(cursor_char, cursor_color, x, y);
+    terminal().put_entry_at(cursor_char, cursor_color, x, y);
 }
 
-pub unsafe fn handle_irq12(terminal: &mut Terminal) {
+pub unsafe fn handle_irq12() {
     let data = inb(PS2_DATA);
-    handle_mouse_data(data, terminal);
+    handle_mouse_data(data);
     outb(0xA0, 0x20);
     outb(0x20, 0x20);
 }

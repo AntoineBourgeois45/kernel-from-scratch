@@ -74,6 +74,13 @@ pub struct Terminal {
     pub buffer: *mut u16,
 }
 
+impl core::fmt::Write for Terminal {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        unsafe { self.write_str(s) };
+        Ok(())
+    }
+}
+
 impl Terminal {
     pub unsafe fn initialize(&mut self) {
         self.row = 0;
@@ -159,4 +166,41 @@ impl Terminal {
         self.write_str("\n");
         self.set_color(old_color);
     }
+}
+
+const TERMINAL_INIT: Terminal = Terminal {
+    row: 0,
+    column: 0,
+    color: vga_entry_color(VgaColor::White, VgaColor::Black),
+    buffer: 0xb8000 as *mut u16,
+};
+
+static mut TERMINAL: Terminal = TERMINAL_INIT;
+
+pub fn terminal() -> &'static mut Terminal {
+    unsafe { &mut TERMINAL }
+}
+
+#[macro_export]
+macro_rules! kprint {
+    ($level:expr, $msg:expr) => {
+        unsafe { $crate::terminal().print($msg, $level) }
+    };
+    ($level:expr, $fmt:expr, $($arg:tt)+) => {
+        {
+            let term = $crate::terminal();
+            if let Some(prefix) = $level.prefix() {
+                term.set_color($level.color());
+                unsafe { term.write_str(prefix) };
+            }
+            let _ = core::fmt::Write::write_fmt(term, format_args!($fmt, $($arg)+));
+            unsafe { term.write_str("\n") };
+            term.set_color(
+                $crate::vga::terminal::vga_entry_color(
+                    $crate::vga::terminal::VgaColor::LightGrey,
+                    $crate::vga::terminal::VgaColor::Black,
+                )
+            );
+        }
+    };
 }

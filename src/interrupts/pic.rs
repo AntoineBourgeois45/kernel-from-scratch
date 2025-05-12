@@ -1,6 +1,6 @@
 use core::arch::asm;
 
-use crate::{interrupts::{idt::init_idt, io::outb}, ps2::mouse, vga::terminal::{LogLevel, Terminal}};
+use crate::{interrupts::io::outb, ps2::mouse, vga::terminal::{LogLevel, Terminal}};
 
 pub const PIC1_CMD: u16 = 0x20;
 const PIC1_DATA: u16 = 0x21;
@@ -11,16 +11,7 @@ const ICW1_INIT: u8 = 0x11;
 const ICW1_ICW4: u8 = 0x01;
 const ICW4_8086: u8 = 0x01;
 
-pub unsafe fn init(terminal: &mut Terminal) {
-    terminal.print("Initializing IDT...\n", LogLevel::Trace);
-    init_idt();
-    terminal.print("Initializing PIC...\n", LogLevel::Trace);
-    init_pic(32, 40);
-    
-    asm!("sti", options(nomem, nostack));
-}
-
-unsafe fn init_pic(offset1: u8, offset2: u8) {
+pub unsafe fn init_pic(offset1: u8, offset2: u8) {
     outb(PIC1_CMD, ICW1_INIT | ICW1_ICW4);
     outb(PIC2_CMD, ICW1_INIT | ICW1_ICW4);
 
@@ -37,10 +28,10 @@ unsafe fn init_pic(offset1: u8, offset2: u8) {
     outb(PIC2_DATA, 0x00);
 }
 
-pub unsafe fn handle_interrupt(terminal: &mut Terminal, interrupt_number: u8) {
+pub unsafe fn handle_interrupt(interrupt_number: u8) {
     match interrupt_number {
         0x2C => {
-            mouse::handle_irq12(terminal);
+            mouse::handle_irq12();
         }
         _ => {
             if interrupt_number >= 0x28 && interrupt_number < 0x30 {

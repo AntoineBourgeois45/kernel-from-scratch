@@ -1,6 +1,6 @@
 use core::arch::asm;
 
-use crate::ps2::keyboard::keyboard_handler;
+use crate::{kprint, ps2::keyboard::keyboard_handler, vga::terminal::LogLevel};
 
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
@@ -39,21 +39,36 @@ pub unsafe fn set_handler(index: usize, handler_function_addr: u32, selector: u1
     IDT[index].isr_high = (handler_function_addr >> 16) as u16;
 }
 
+extern "C" fn exception_handler() {
+    unsafe { asm!(
+        "cli",
+        "hlt",
+        options(nomem, nostack)) }
+}
+
+extern "C" fn divide_by_zero_handler() {
+    kprint!(LogLevel::Error, "Can't divide by zero\n");
+    unsafe { asm!(
+        "cli",
+        "hlt",
+        options(nomem, nostack)) }
+}
+
 pub unsafe fn init_idt() {
     for i in 0..256 {
-        set_handler(i, 0, 0, 0);
+        set_handler(i, exception_handler as u32, 0x08, 0x08E);
     }
+
+    set_handler(0, divide_by_zero_handler as u32, 0x08, 0x8E);
 
     set_handler(33, keyboard_handler as u32, 0x08, 0x8E);
 
-    let idtr = Idtr {
-        limit: (core::mem::size_of::<[IdtEntry; 256]>() - 1) as u16,
-        base: &raw const IDT as *const _ as u32,
-    };
+    IDTR.limit = (core::mem::size_of::<[IdtEntry; 256]>() - 1) as u16;
+    IDTR.base = &raw const IDT as *const _ as u32;
 
     asm!(
         "lidt [{}]",
-        in(reg) &idtr,
+        in(reg) &raw const IDTR as *const _ as u32,
         options(readonly, nostack)
     );
     asm!(
