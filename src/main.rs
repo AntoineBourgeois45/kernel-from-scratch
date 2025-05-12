@@ -5,6 +5,7 @@
 pub mod vga;
 pub mod ps2;
 pub mod interrupts;
+pub mod gdt;
 
 use core::{arch::asm, panic::PanicInfo};
 use interrupts::{idt::init_idt, pic::init_pic};
