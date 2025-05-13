@@ -12,8 +12,8 @@ const ICW1_ICW4: u8 = 0x01;
 const ICW4_8086: u8 = 0x01;
 
 pub unsafe fn init_pic(offset1: u8, offset2: u8) {
-    outb(PIC1_CMD, ICW1_INIT | ICW1_ICW4);
-    outb(PIC2_CMD, ICW1_INIT | ICW1_ICW4);
+    outb(PIC1_CMD, ICW1_INIT);
+    outb(PIC2_CMD, ICW1_INIT);
 
     outb(PIC1_DATA, offset1);
     outb(PIC2_DATA, offset2);

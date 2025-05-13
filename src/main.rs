@@ -8,7 +8,8 @@ pub mod interrupts;
 pub mod gdt;
 
 use core::{arch::asm, panic::PanicInfo};
-use interrupts::{idt::init_idt, pic::init_pic};
+use gdt::gdt::init_gdt;
+use interrupts::idt::init_idt;
 use vga::terminal::LogLevel;
 
 use crate::vga::terminal::terminal;
@@ -21,16 +22,9 @@ pub unsafe extern "C" fn memcpy(dest: *mut u8, src: *const u8, n: usize) -> *mut
     dest
 }
 
-#[no_mangle]
-pub extern "C" fn handle_interrupt_wrapper(interrupt_num: u8) {
-    unsafe {
-        interrupts::pic::handle_interrupt(interrupt_num);
-    }
-}
-
 fn force_division_by_zero() {
     unsafe {
-        core::arch::asm!(
+        asm!(
             "mov eax, 42",
             "mov ebx, 0",
             "div ebx",
@@ -53,14 +47,16 @@ pub extern "C" fn kernel_main() -> ! {
 
 ");
 
+    kprint!(LogLevel::Trace, "Initializing GDT...");
+    init_gdt();
+
     kprint!(LogLevel::Trace, "Initializing IDT...");
+    init_idt();
 
-    unsafe {
-        init_pic(0x20, 0x28);
-        init_idt()
-    }
+    kprint!(LogLevel::Debug, "");
 
-    force_division_by_zero();
+    // unsafe { asm!("sti") }
+    // force_division_by_zero();
 
     loop {}
 }
