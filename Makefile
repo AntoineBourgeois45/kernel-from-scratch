@@ -19,6 +19,7 @@ endif
 
 UNAME := $(shell uname)
 ifeq ($(findstring Darwin,$(UNAME)),Darwin)
+	LINKER_SCRIPT := boot/linker_macos.ls
   ifneq ($(shell command -v i386-elf-ld 2>/dev/null),)
     LD := i386-elf-ld
   else ifneq ($(shell command -v ld.lld 2>/dev/null),)
@@ -30,6 +31,7 @@ ifeq ($(findstring Darwin,$(UNAME)),Darwin)
   endif
 else
   LD := ld
+  LINKER_SCRIPT := boot/linker.ls
 endif
 
 .PHONY: all clean run
@@ -51,13 +53,13 @@ $(GDT_HELPERS_OBJ): src/gdt/gdt_helpers.asm
 	@mkdir -p $(BUILD_DIR)
 	nasm -f elf32 $< -o $@
 
-$(KERNEL_BIN): $(BOOT_OBJ) src/main.rs Cargo.toml $(TARGET_JSON)
+$(KERNEL_BIN): $(BOOT_OBJ) ${EXC_OBJ} $(GDT_HELPERS_OBJ) src/main.rs Cargo.toml $(TARGET_JSON)
 	@echo "Building Rust kernel..."
 	cargo $(RUST_TOOLCHAIN) build --target $(TARGET_JSON) --release
 	@echo "Extracting .a into $(KERNEL_O)..."
 	@cp target/i386-unknown-none/release/lib$(TARGET).a $(KERNEL_O)
 	@echo "Linking -> $@ with $(LD)..."
-	$(LD) -m elf_i386 -T boot/linker.ls -o $@ $(BOOT_OBJ) $(KERNEL_O)
+	$(LD) -m elf_i386 -T ${LINKER_SCRIPT} -o $@ $(BOOT_OBJ) $(KERNEL_O) ${EXC_OBJ} $(GDT_HELPERS_OBJ)
 
 $(NAME): $(KERNEL_BIN)
 	@echo "Creating ISO -> $@"
