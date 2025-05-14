@@ -3,33 +3,32 @@ global gdt_reload_segments
 
 section .text
 gdt_reload_segments:
-    ; Lire les paramètres directement
-    movzx eax, word [esp+4]  ; Sélecteur de code (16 bits avec zero extension)
-    movzx ebx, word [esp+8]  ; Sélecteur de données (16 bits avec zero extension)
+    ; Récupération des arguments
+    mov eax, [esp+4]  ; code selector
+    mov ebx, [esp+8]  ; data selector
     
-    ; Sauvegarder le sélecteur de données dans un registre préservé
-    mov edi, ebx
+    ; Far jump pour recharger CS
+    ; Structure: jmp FAR [mem] où mem contient [offset, segment]
+    jmp far [reload_target]
+
+reload_target:
+    dd reload_segments  ; offset 32 bits
+    dw 0                ; segment selector (rempli dynamiquement)
     
-    ; Préparer l'adresse de retour pour l'étiquette
-    mov edx, reload_cs_done
-    
-    ; Configuration pour le far return qui changera CS
-    push ax                  ; Pousser le sélecteur de code (16 bits)
-    push edx                 ; Pousser l'adresse de retour (32 bits)
-    
-    ; Exécuter le far return
-    retf
-    
-reload_cs_done:
-    ; CS est maintenant rechargé avec le nouveau sélecteur
+reload_segments:
+    ; À ce stade, CS est rechargé
+    ; Remplir le sélecteur de segment avec la valeur dans eax
+    mov [reload_target+4], ax
     
     ; Recharger les segments de données
-    mov ax, di               ; Récupérer le sélecteur de données
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    mov ss, ax               ; Charger SS en dernier
+    mov ds, bx
+    mov es, bx
+    mov fs, bx
+    mov gs, bx
+    mov ss, bx
     
-    ; Retourner à l'appelant
     ret
+
+section .data
+    ; Espace pour l'alignement
+    dd 0

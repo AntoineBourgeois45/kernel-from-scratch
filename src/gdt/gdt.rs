@@ -62,17 +62,17 @@ static mut GDT: GlobalDescriptorTable = GlobalDescriptorTable {
 
 impl GlobalDescriptorTable {
     pub fn kernel_code_segment_selector() -> u16 {
-        1 << 3
+        2 << 3
     }
     pub fn kernel_data_segment_selector() -> u16 {
-        2 << 3
+        3 << 3
     }
 
     pub fn user_code_segment_selector() -> u16 {
-        3 << 3
+        4 << 3
     }
     pub fn user_data_segment_selector() -> u16 {
-        4 << 3
+        5 << 3
     }
 }
 
@@ -99,11 +99,20 @@ pub fn init_gdt() {
             "lgdt [{}]",
             in(reg) &raw const GDTR as *const _ as u32,
             options(nostack, nomem)
-        );        
-        gdt_reload_segments(
-            GlobalDescriptorTable::kernel_code_segment_selector(),
-            GlobalDescriptorTable::kernel_data_segment_selector()
         );
+        // asm!(
+        //     "mov ax, {0:x}",
+        //     "mov ds, ax",
+        //     "mov es, ax",
+        //     "mov fs, ax",
+        //     "mov gs, ax",
+        //     in(reg) GlobalDescriptorTable::kernel_data_segment_selector(),
+        //     out("ax") _,
+        // );     
+        // gdt_reload_segments(
+        //     GlobalDescriptorTable::kernel_code_segment_selector(),
+        //     GlobalDescriptorTable::kernel_data_segment_selector()
+        // );
     }
     kprint!(LogLevel::Info, "GDT initialized successfully\n");
 }

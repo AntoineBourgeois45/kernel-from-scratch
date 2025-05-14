@@ -20,6 +20,7 @@ pub struct Idtr {
     pub base: u32,
 }
 
+#[link_section = ".data"]
 static mut IDT: [IdtEntry; 256] = [IdtEntry {
     isr_low: 0,
     kernel_cs: 0,
@@ -28,6 +29,7 @@ static mut IDT: [IdtEntry; 256] = [IdtEntry {
     isr_high: 0,
 }; 256];
 
+#[link_section = ".data"]
 static mut IDTR: Idtr = Idtr {
     limit: 0,
     base: 0,
@@ -92,6 +94,7 @@ extern "C" fn exception_handler() {
 
 pub fn init_idt() {
     unsafe {
+        kprint!(LogLevel::Debug, "IDT address: {:#x}\n", &IDT as *const _ as u32);
         let handlers: [u32; 48] = [
             isr0 as u32,  isr1 as u32,  isr2 as u32,  isr3 as u32,
             isr4 as u32,  isr5 as u32,  isr6 as u32,  isr7 as u32,
@@ -114,6 +117,9 @@ pub fn init_idt() {
 
         IDTR.limit = (core::mem::size_of::<[IdtEntry; 256]>() - 1) as u16;
         IDTR.base = &raw const IDT as *const _ as u32;
+
+        kprint!(LogLevel::Debug, "IDTR base: {:#x}, limit: {:#x}\n", 
+        IDTR.base, IDTR.limit);
 
         asm!(
             "lidt [{}]",
