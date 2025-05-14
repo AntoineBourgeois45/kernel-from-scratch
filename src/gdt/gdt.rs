@@ -51,6 +51,8 @@ pub struct GlobalDescriptorTable {
     pub user_data_segment_selector: SegmentDescriptor,
 }
 
+#[link_section = ".data"]
+#[no_mangle]
 static mut GDT: GlobalDescriptorTable = GlobalDescriptorTable {
     null_segment_selector: SegmentDescriptor::new(0, 0, 0),
     unused_segment_selector: SegmentDescriptor::new(0, 0, 0),
@@ -81,6 +83,8 @@ pub struct Gdtr {
     pub base: u32,
 }
 
+#[link_section = ".data"]
+#[no_mangle]
 static mut GDTR: Gdtr = Gdtr {
     limit: 0,
     base: 0,
@@ -94,25 +98,17 @@ extern "C" {
 pub fn init_gdt() {
     unsafe {
         GDTR.limit = (core::mem::size_of::<GlobalDescriptorTable>() - 1) as u16;
-        GDTR.base = &raw const GDT as *const _ as u32;
+        GDTR.base = &GDT as *const _ as u32;
         asm!(
             "lgdt [{}]",
-            in(reg) &raw const GDTR as *const _ as u32,
+            in(reg) &GDTR as *const _ as u32,
             options(nostack, nomem)
         );
-        // asm!(
-        //     "mov ax, {0:x}",
-        //     "mov ds, ax",
-        //     "mov es, ax",
-        //     "mov fs, ax",
-        //     "mov gs, ax",
-        //     in(reg) GlobalDescriptorTable::kernel_data_segment_selector(),
-        //     out("ax") _,
-        // );     
-        // gdt_reload_segments(
-        //     GlobalDescriptorTable::kernel_code_segment_selector(),
-        //     GlobalDescriptorTable::kernel_data_segment_selector()
-        // );
+
+        gdt_reload_segments(
+            GlobalDescriptorTable::kernel_code_segment_selector(),
+            GlobalDescriptorTable::kernel_data_segment_selector()
+        );
     }
     kprint!(LogLevel::Info, "GDT initialized successfully\n");
 }

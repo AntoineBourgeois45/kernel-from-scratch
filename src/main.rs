@@ -61,7 +61,7 @@ pub extern "C" fn kernel_main() -> ! {
     unsafe { asm!("sti") }
     kprint!(LogLevel::Info, "Interrupts enabled successfully\n");
 
-    force_breakpoint();
+    // force_breakpoint();
 
     loop {}
 }

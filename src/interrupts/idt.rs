@@ -21,6 +21,7 @@ pub struct Idtr {
 }
 
 #[link_section = ".data"]
+#[no_mangle]
 static mut IDT: [IdtEntry; 256] = [IdtEntry {
     isr_low: 0,
     kernel_cs: 0,
@@ -30,6 +31,7 @@ static mut IDT: [IdtEntry; 256] = [IdtEntry {
 }; 256];
 
 #[link_section = ".data"]
+#[no_mangle]
 static mut IDTR: Idtr = Idtr {
     limit: 0,
     base: 0,
@@ -116,7 +118,7 @@ pub fn init_idt() {
         init_pic(0x20, 0x28);
 
         IDTR.limit = (core::mem::size_of::<[IdtEntry; 256]>() - 1) as u16;
-        IDTR.base = &raw const IDT as *const _ as u32;
+        IDTR.base = &IDT as *const _ as u32;
 
         kprint!(LogLevel::Debug, "IDTR base: {:#x}, limit: {:#x}\n", 
         IDTR.base, IDTR.limit);

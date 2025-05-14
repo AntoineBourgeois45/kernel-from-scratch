@@ -3,24 +3,22 @@ global gdt_reload_segments
 
 section .text
 gdt_reload_segments:
-    ; Récupération des arguments
-    mov eax, [esp+4]  ; code selector
-    mov ebx, [esp+8]  ; data selector
+    ; Get arguments from stack (cdecl calling convention)
+    mov ax, [esp+4]  ; code selector
+    mov bx, [esp+8]  ; data selector
     
-    ; Far jump pour recharger CS
-    ; Structure: jmp FAR [mem] où mem contient [offset, segment]
-    jmp far [reload_target]
-
-reload_target:
-    dd reload_segments  ; offset 32 bits
-    dw 0                ; segment selector (rempli dynamiquement)
+    ; Create a far jump structure
+    mov [temp_gdt.code_segment], ax  ; Store code segment selector
+    jmp far [temp_gdt]               ; Far jump using the structure
+    
+temp_gdt:
+    dd reload_segments      ; 32-bit offset (where to jump to)
+.code_segment:
+    dw 0                    ; 16-bit segment selector (filled at runtime)
     
 reload_segments:
-    ; À ce stade, CS est rechargé
-    ; Remplir le sélecteur de segment avec la valeur dans eax
-    mov [reload_target+4], ax
-    
-    ; Recharger les segments de données
+    ; Now we're executing with the new code segment
+    ; Reload all data segment registers with new data segment
     mov ds, bx
     mov es, bx
     mov fs, bx
@@ -28,7 +26,3 @@ reload_segments:
     mov ss, bx
     
     ret
-
-section .data
-    ; Espace pour l'alignement
-    dd 0
