@@ -14,10 +14,11 @@ pub struct SegmentDescriptor {
 }
 
 impl SegmentDescriptor {
-    const fn new(base: u32, limit: u32, type_: u8) -> Self {
+    const fn new(base: u32, limit: u32, access_byte: u8) -> Self {
         let limit_lo = (limit & 0xFFFF) as u16;
         let base_lo = (base & 0xFFFF) as u16;
         let base_hi = ((base >> 16) & 0xFF) as u8;
+        let type_ = access_byte | 0x80;
         let flags_limit_hi = (((limit >> 16) & 0x0F) | 0xC0) as u8;
         let base_vhi = ((base >> 24) & 0xFF) as u8;
 
@@ -59,21 +60,19 @@ static mut GDT: GlobalDescriptorTable = GlobalDescriptorTable {
     user_data_segment_selector: SegmentDescriptor::new(0, 0xFFFFFFFF, 0xF2),
 };
 
-const DESCRIPTOR_SIZE: u16 = core::mem::size_of::<SegmentDescriptor>() as u16;
-
 impl GlobalDescriptorTable {
     pub fn kernel_code_segment_selector() -> u16 {
-        2 << 3
+        1 << 3
     }
     pub fn kernel_data_segment_selector() -> u16 {
-        3 << 3
+        2 << 3
     }
 
     pub fn user_code_segment_selector() -> u16 {
-        4 << 3
+        3 << 3
     }
     pub fn user_data_segment_selector() -> u16 {
-        5 << 3
+        4 << 3
     }
 }
 
@@ -87,6 +86,11 @@ static mut GDTR: Gdtr = Gdtr {
     base: 0,
 };
 
+#[allow(unused)]
+extern "C" {
+    fn gdt_reload_segments(code_selector: u16, data_selector: u16);
+}
+
 pub fn init_gdt() {
     unsafe {
         GDTR.limit = (core::mem::size_of::<GlobalDescriptorTable>() - 1) as u16;
@@ -95,6 +99,10 @@ pub fn init_gdt() {
             "lgdt [{}]",
             in(reg) &raw const GDTR as *const _ as u32,
             options(nostack, nomem)
+        );        
+        gdt_reload_segments(
+            GlobalDescriptorTable::kernel_code_segment_selector(),
+            GlobalDescriptorTable::kernel_data_segment_selector()
         );
     }
     kprint!(LogLevel::Info, "GDT initialized successfully\n");

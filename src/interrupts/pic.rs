@@ -1,4 +1,4 @@
-use crate::{interrupts::{handlers::IRQ, io::outb}, kprint, vga::terminal::LogLevel};
+use crate::{interrupts::{handlers::irq, io::outb}, kprint, vga::terminal::LogLevel};
 
 use super::io::inb;
 
@@ -43,10 +43,10 @@ extern "C" fn handle_interrupt(interrupt_number: u8) {
     unsafe {
         match interrupt_number {
             32 => {
-                IRQ::timer::handle_timer();
+                irq::timer::handle_timer();
             }
             33 => {
-                IRQ::keyboard::handle_keyboard(inb(0x60));
+                irq::keyboard::handle_keyboard(inb(0x60));
             }
             _ => {
                 kprint!(LogLevel::Error, "Unhandled interrupt: {}\n", interrupt_number);
