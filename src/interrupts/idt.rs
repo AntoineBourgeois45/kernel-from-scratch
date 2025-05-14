@@ -1,7 +1,7 @@
 use core::arch::asm;
 
 use crate::interrupts::pic::init_pic;
-use crate::{kprint, ps2::keyboard::keyboard_handler, vga::terminal::LogLevel};
+use crate::{kprint, vga::terminal::LogLevel};
 use crate::gdt::gdt::GlobalDescriptorTable;
 
 #[repr(C, packed)]
@@ -50,6 +50,10 @@ extern "C" {
     fn isr20();  fn isr21();  fn isr22();  fn isr23();
     fn isr24();  fn isr25();  fn isr26();  fn isr27();
     fn isr28();  fn isr29();  fn isr30();  fn isr31();
+    fn isr32();  fn isr33();  fn isr34();  fn isr35();
+    fn isr36();  fn isr37();  fn isr38();  fn isr39();
+    fn isr40();  fn isr41();  fn isr42();  fn isr43();
+    fn isr44();  fn isr45();  fn isr46();  fn isr47();
 }
 
 extern "C" {
@@ -75,7 +79,7 @@ fn handle_unknown(int_no: u8) {
 }
 
 #[no_mangle]
-extern "C" fn exception_handler() -> ! {
+extern "C" fn exception_handler() {
     let int_no = unsafe { interrupt_number };
     kprint!(LogLevel::Error, "Exception #{} occurred\n", int_no);
     match int_no {
@@ -84,19 +88,11 @@ extern "C" fn exception_handler() -> ! {
         14 => handle_page_fault(),
         n  => handle_unknown(n),
     }
-
-    unsafe {
-        asm!(
-            "cli",
-            "hlt",
-            options(noreturn)
-        );
-    }
 }
 
 pub fn init_idt() {
     unsafe {
-        let handlers: [u32; 32] = [
+        let handlers: [u32; 48] = [
             isr0 as u32,  isr1 as u32,  isr2 as u32,  isr3 as u32,
             isr4 as u32,  isr5 as u32,  isr6 as u32,  isr7 as u32,
             isr8 as u32,  isr9 as u32,  isr10 as u32, isr11 as u32,
@@ -105,6 +101,10 @@ pub fn init_idt() {
             isr20 as u32, isr21 as u32, isr22 as u32, isr23 as u32,
             isr24 as u32, isr25 as u32, isr26 as u32, isr27 as u32,
             isr28 as u32, isr29 as u32, isr30 as u32, isr31 as u32,
+            isr32 as u32, isr33 as u32, isr34 as u32, isr35 as u32,
+            isr36 as u32, isr37 as u32, isr38 as u32, isr39 as u32,
+            isr40 as u32, isr41 as u32, isr42 as u32, isr43 as u32,
+            isr44 as u32, isr45 as u32, isr46 as u32, isr47 as u32,
         ];
         for (i, &addr) in handlers.iter().enumerate() {
             set_handler(i, addr, GlobalDescriptorTable::kernel_code_segment_selector(), 0x8E);
@@ -121,4 +121,5 @@ pub fn init_idt() {
             options(readonly, nostack)
         );
     }
+    kprint!(LogLevel::Info, "IDT initialized successfully\n");
 }

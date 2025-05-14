@@ -1,5 +1,7 @@
 use core::arch::asm;
 
+use crate::{kprint, vga::terminal::LogLevel};
+
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
 pub struct SegmentDescriptor {
@@ -95,4 +97,5 @@ pub fn init_gdt() {
             options(nostack, nomem)
         );
     }
+    kprint!(LogLevel::Info, "GDT initialized successfully\n");
 }

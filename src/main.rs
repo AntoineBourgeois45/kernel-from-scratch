@@ -33,6 +33,10 @@ fn force_division_by_zero() {
     }
 }
 
+fn force_breakpoint() {
+    unsafe { asm!("int3"); }
+}
+
 #[no_mangle]
 pub extern "C" fn kernel_main() -> ! {
     unsafe { terminal().initialize() }
@@ -53,10 +57,11 @@ pub extern "C" fn kernel_main() -> ! {
     kprint!(LogLevel::Trace, "Initializing IDT...");
     init_idt();
 
-    kprint!(LogLevel::Debug, "");
+    kprint!(LogLevel::Trace, "Enabling interrupts...");
+    unsafe { asm!("sti") }
+    kprint!(LogLevel::Info, "Interrupts enabled successfully\n");
 
-    // unsafe { asm!("sti") }
-    // force_division_by_zero();
+    force_breakpoint();
 
     loop {}
 }
