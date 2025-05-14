@@ -50,6 +50,8 @@ pub extern "C" fn kernel_main() -> ! {
      ##   ######
 
 ");
+    kprint!(LogLevel::Trace, "Disabling interrupts...\n");
+    unsafe { asm!("cli", options(nomem, nostack)) }
 
     kprint!(LogLevel::Trace, "Initializing GDT...");
     init_gdt();

@@ -18,7 +18,7 @@ extern handle_interrupt
     push gs
     
     ; Load kernel data segments
-    mov ax, 0x10  ; Kernel data segment selector
+    mov ax, 0x18  ; Kernel data segment selector
     mov ds, ax
     mov es, ax
     mov fs, ax
@@ -48,7 +48,7 @@ extern handle_interrupt
     push gs
     
     ; Load kernel data segments
-    mov ax, 0x10  ; Kernel data segment selector
+    mov ax, 0x18  ; Kernel data segment selector
     mov ds, ax
     mov es, ax
     mov fs, ax
