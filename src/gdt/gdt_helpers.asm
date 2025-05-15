@@ -34,7 +34,7 @@ gdt_reload_segments:
     ; Don't reload SS yet, as that could cause stack issues
     
     ; Perform a far jump to reload CS
-    jmp 0x08:reload_cs  ; Direct far jump with immediate segment and offset
+    jmp far [reload_target]
     
 reload_cs:
     ; Now that CS is reloaded, we can safely set SS
