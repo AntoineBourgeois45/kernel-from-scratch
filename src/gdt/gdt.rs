@@ -32,10 +32,10 @@ impl SegmentDescriptor {
         }
     }
 
-    fn base(&self) -> u32 {
+    fn _base(&self) -> u32 {
         ((self.base_vhi as u32) << 24) | ((self.base_hi as u32) << 16) | (self.base_lo as u32)
     }
-    fn limit(&self) -> u32 {
+    fn _limit(&self) -> u32 {
         (((self.flags_limit_hi & 0x0F) as u32) << 16) | (self.limit_lo as u32)
     }
 }
@@ -47,8 +47,8 @@ pub struct GlobalDescriptorTable {
     pub unused_segment_selector: SegmentDescriptor,
     pub kernel_code_segment_selector: SegmentDescriptor,
     pub kernel_data_segment_selector: SegmentDescriptor,
-    pub user_code_segment_selector: SegmentDescriptor,
-    pub user_data_segment_selector: SegmentDescriptor,
+    // pub user_code_segment_selector: SegmentDescriptor,
+    // pub user_data_segment_selector: SegmentDescriptor,
 }
 
 #[link_section = ".data"]
@@ -58,8 +58,8 @@ static mut GDT: GlobalDescriptorTable = GlobalDescriptorTable {
     unused_segment_selector: SegmentDescriptor::new(0, 0, 0),
     kernel_code_segment_selector: SegmentDescriptor::new(0, 0xFFFFFFFF, 0x9A),
     kernel_data_segment_selector: SegmentDescriptor::new(0, 0xFFFFFFFF, 0x92),
-    user_code_segment_selector: SegmentDescriptor::new(0, 0xFFFFFFFF, 0xFA),
-    user_data_segment_selector: SegmentDescriptor::new(0, 0xFFFFFFFF, 0xF2),
+    // user_code_segment_selector: SegmentDescriptor::new(0, 0xFFFFFFFF, 0xFA),
+    // user_data_segment_selector: SegmentDescriptor::new(0, 0xFFFFFFFF, 0xF2),
 };
 
 impl GlobalDescriptorTable {
@@ -78,6 +78,7 @@ impl GlobalDescriptorTable {
     }
 }
 
+#[repr(C)]
 pub struct Gdtr {
     pub limit: u16,
     pub base: u32,
@@ -93,35 +94,116 @@ static mut GDTR: Gdtr = Gdtr {
 fn _print_segments() {
     unsafe {
         kprint!(LogLevel::Debug, "GDT print segments : \n");
-        kprint!(LogLevel::Debug, "Null Segment: base = {:#X}, limit = {:#X}, access_byte = {:#X}\n", GDT.null_segment_selector.base(), GDT.null_segment_selector.limit(), GDT.null_segment_selector.type_);
-        kprint!(LogLevel::Debug, "Kernel Code Segment: base = {:#X}, limit = {:#X}, access_byte = {:#X}\n", GDT.kernel_code_segment_selector.base(), GDT.kernel_code_segment_selector.limit(), GDT.kernel_code_segment_selector.type_);
-        kprint!(LogLevel::Debug, "Kernel Data Segment: base = {:#X}, limit = {:#X}, access_byte = {:#X}\n", GDT.kernel_data_segment_selector.base(), GDT.kernel_data_segment_selector.limit(), GDT.kernel_data_segment_selector.type_);
-        kprint!(LogLevel::Debug, "User Code Segment: base = {:#X}, limit = {:#X}, access_byte = {:#X}\n", GDT.user_code_segment_selector.base(), GDT.user_code_segment_selector.limit(), GDT.user_code_segment_selector.type_);
-        kprint!(LogLevel::Debug, "User Data Segment: base = {:#X}, limit = {:#X}, access_byte = {:#X}\n", GDT.user_data_segment_selector.base(), GDT.user_data_segment_selector.limit(), GDT.user_data_segment_selector.type_);
+        kprint!(LogLevel::Debug, "Null Segment: base = {:#X}, limit = {:#X}, access_byte = {:#X}\n", GDT.null_segment_selector._base(), GDT.null_segment_selector._limit(), GDT.null_segment_selector.type_);
+        kprint!(LogLevel::Debug, "Kernel Code Segment: base = {:#X}, limit = {:#X}, access_byte = {:#X}\n", GDT.kernel_code_segment_selector._base(), GDT.kernel_code_segment_selector._limit(), GDT.kernel_code_segment_selector.type_);
+        kprint!(LogLevel::Debug, "Kernel Data Segment: base = {:#X}, limit = {:#X}, access_byte = {:#X}\n", GDT.kernel_data_segment_selector._base(), GDT.kernel_data_segment_selector._limit(), GDT.kernel_data_segment_selector.type_);
+        // kprint!(LogLevel::Debug, "User Code Segment: base = {:#X}, limit = {:#X}, access_byte = {:#X}\n", GDT.user_code_segment_selector._base(), GDT.user_code_segment_selector._limit(), GDT.user_code_segment_selector.type_);
+        // kprint!(LogLevel::Debug, "User Data Segment: base = {:#X}, limit = {:#X}, access_byte = {:#X}\n", GDT.user_data_segment_selector._base(), GDT.user_data_segment_selector._limit(), GDT.user_data_segment_selector.type_);
     }
 }
 
-unsafe fn debug_segments() {
-    let mut cs: u16 = 0;
-    let mut ds: u16 = 0;
-    asm!("mov {0:x}, cs", out(reg) cs);
-    asm!("mov {0:x}, ds", out(reg) ds);
-    kprint!(LogLevel::Debug, "Segment registers: CS={:#x}, DS={:#x}\n", cs, ds);
+// pub fn init_gdt() {
+//     unsafe {
+//         GDTR.limit = (core::mem::size_of::<GlobalDescriptorTable>() - 1) as u16;
+//         GDTR.base = &GDT as *const _ as u32;
+
+//         asm!(
+//             "lgdt [{}]",
+//             in(reg) &GDTR
+//         );
+//     }
+//     kprint!(LogLevel::Info, "GDT initialized successfully\n");
+// }
+
+
+// Structure GDT en Rust
+#[derive(Debug, Clone, Copy)]
+pub struct GDT {
+    pub limit: u32,
+    pub base: u32,
+    pub access_byte: u8,
+    pub flags: u8,
+}
+
+pub fn encode_gdt_entry(target: &mut [u8], source: GDT) {
+    // Vérifier que la limite peut être encodée
+    if source.limit > 0xFFFFF {
+        panic!("GDT cannot encode limits larger than 0xFFFFF");
+    }
+    
+    // Encoder la limite
+    target[0] = (source.limit & 0xFF) as u8;
+    target[1] = ((source.limit >> 8) & 0xFF) as u8;
+    target[6] = ((source.limit >> 16) & 0x0F) as u8;
+    
+    // Encoder la base
+    target[2] = (source.base & 0xFF) as u8;
+    target[3] = ((source.base >> 8) & 0xFF) as u8;
+    target[4] = ((source.base >> 16) & 0xFF) as u8;
+    target[7] = ((source.base >> 24) & 0xFF) as u8;
+    
+    // Encoder l'octet d'accès
+    target[5] = source.access_byte;
+    
+    // Encoder les flags
+    target[6] |= source.flags << 4;
 }
 
 extern "C" {
-    fn load_gdt(gdtr: *const Gdtr);
-    fn gdt_reload_segments();
+    fn setGdt(limit: u16, base: *const u8);
+    fn reloadSegments();
+}
+
+// Fonction Rust qui encapsule l'appel à la fonction assembleur
+pub fn load_gdt(gdt_table: &[u8]) {
+    let limit = (gdt_table.len() - 1) as u16;
+    let base = gdt_table.as_ptr();
+    
+    unsafe {
+        setGdt(limit, base);
+    }
 }
 
 pub fn init_gdt() {
-    unsafe {
-        GDTR.limit = (core::mem::size_of::<GlobalDescriptorTable>() - 1) as u16;
-        GDTR.base = &GDT as *const _ as u32;
+    // Créer un tableau pour stocker l'entrée GDT (8 octets par entrée)
+    let mut gdt_table = [0u8; 4 * 8];
+    
+    // Définir une entrée GDT
+    let null_entry = GDT {
+        limit: 0,           // Limite maximale
+        base: 0x0,                // Base à 0
+        access_byte: 0,        // Code segment, readable, present
+        flags: 0xC,               // 32-bit, 4KB granularity
+    };
+    encode_gdt_entry(&mut gdt_table[0..8], null_entry);
 
-        load_gdt(&GDTR as *const Gdtr);
-        
-        // gdt_reload_segments();
+    let unused_entry = GDT {
+        limit: 0,           // Limite maximale
+        base: 0x0,                // Base à 0
+        access_byte: 0,        // Code segment, readable, present
+        flags: 0xC,               // 32-bit, 4KB granularity
+    };
+    encode_gdt_entry(&mut gdt_table[8..16], unused_entry);
+
+    let kernel_code_entry = GDT {
+        limit: 0xFFFFF,           // Limite maximale
+        base: 0x0,                // Base à 0
+        access_byte: 0x9A,        // Code segment, readable, present
+        flags: 0xC,               // 32-bit, 4KB granularity
+    };
+    encode_gdt_entry(&mut gdt_table[16..24], kernel_code_entry);
+
+    let kernel_data_entry = GDT {
+        limit: 0xFFFFF,           // Limite maximale
+        base: 0x0,                // Base à 0
+        access_byte: 0x92,        // Data segment, writable, present
+        flags: 0xC,               // 32-bit, 4KB granularity
+    };
+    encode_gdt_entry(&mut gdt_table[24..32], kernel_data_entry);
+    
+    load_gdt(&gdt_table);
+
+    unsafe {
+        reloadSegments();
     }
-    kprint!(LogLevel::Info, "GDT initialized successfully\n");
 }

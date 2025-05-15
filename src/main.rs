@@ -22,7 +22,7 @@ pub unsafe extern "C" fn memcpy(dest: *mut u8, src: *const u8, n: usize) -> *mut
     dest
 }
 
-fn force_division_by_zero() {
+fn _force_division_by_zero() {
     unsafe {
         asm!(
             "mov eax, 42",
@@ -33,8 +33,12 @@ fn force_division_by_zero() {
     }
 }
 
-fn force_breakpoint() {
+fn _force_breakpoint() {
     unsafe { asm!("int3"); }
+}
+
+extern "C" {
+    fn gdt_reload_segments();
 }
 
 #[no_mangle]
@@ -50,20 +54,19 @@ pub extern "C" fn kernel_main() -> ! {
      ##   ######
 
 ");
-    kprint!(LogLevel::Trace, "Disabling interrupts...\n");
-    unsafe { asm!("cli", options(nomem, nostack)) }
+    
 
     kprint!(LogLevel::Trace, "Initializing GDT...");
     init_gdt();
 
-    kprint!(LogLevel::Trace, "Initializing IDT...");
-    init_idt();
+    // kprint!(LogLevel::Trace, "Initializing IDT...");
+    // init_idt();
 
-    kprint!(LogLevel::Trace, "Enabling interrupts...");
-    unsafe { asm!("sti") }
-    kprint!(LogLevel::Info, "Interrupts enabled successfully\n");
+    // kprint!(LogLevel::Trace, "Enabling interrupts...");
+    // unsafe { asm!("sti") }
+    // kprint!(LogLevel::Info, "Interrupts enabled successfully\n");
 
-    force_breakpoint();
+    // _force_breakpoint();
 
     loop {}
 }

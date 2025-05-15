@@ -1,5 +1,6 @@
 use core::arch::asm;
 
+use crate::interrupts::handlers::isr::double_fault::handle_double_fault;
 use crate::interrupts::pic::init_pic;
 use crate::{kprint, vga::terminal::LogLevel};
 use crate::gdt::gdt::GlobalDescriptorTable;
@@ -89,6 +90,8 @@ extern "C" fn exception_handler() {
     match int_no {
         0  => handle_divide_by_zero(),
         1  => handle_debug(),
+        8 => handle_double_fault(),
+        13 => handle_page_fault(),
         14 => handle_page_fault(),
         n  => handle_unknown(n),
     }
