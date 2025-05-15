@@ -101,11 +101,6 @@ fn _print_segments() {
     }
 }
 
-extern "C" {
-    fn load_gdt(gdtr: *const Gdtr);
-    fn gdt_reload_segments();
-}
-
 unsafe fn debug_segments() {
     let mut cs: u16 = 0;
     let mut ds: u16 = 0;
@@ -114,16 +109,19 @@ unsafe fn debug_segments() {
     kprint!(LogLevel::Debug, "Segment registers: CS={:#x}, DS={:#x}\n", cs, ds);
 }
 
+extern "C" {
+    fn load_gdt(gdtr: *const Gdtr);
+    fn gdt_reload_segments();
+}
+
 pub fn init_gdt() {
     unsafe {
         GDTR.limit = (core::mem::size_of::<GlobalDescriptorTable>() - 1) as u16;
         GDTR.base = &GDT as *const _ as u32;
 
         load_gdt(&GDTR as *const Gdtr);
-
-        debug_segments();
-
-        gdt_reload_segments();
+        
+        // gdt_reload_segments();
     }
     kprint!(LogLevel::Info, "GDT initialized successfully\n");
 }
