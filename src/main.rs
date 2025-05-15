@@ -56,14 +56,14 @@ pub extern "C" fn kernel_main() -> ! {
     kprint!(LogLevel::Trace, "Initializing GDT...");
     init_gdt();
 
-    // kprint!(LogLevel::Trace, "Initializing IDT...");
-    // init_idt();
+    kprint!(LogLevel::Trace, "Initializing IDT...");
+    init_idt();
 
-    // kprint!(LogLevel::Trace, "Enabling interrupts...");
-    // unsafe { asm!("sti") }
-    // kprint!(LogLevel::Info, "Interrupts enabled successfully\n");
+    kprint!(LogLevel::Trace, "Enabling interrupts...");
+    unsafe { asm!("sti") }
+    kprint!(LogLevel::Info, "Interrupts enabled successfully\n");
 
-    // force_breakpoint();
+    force_breakpoint();
 
     loop {}
 }

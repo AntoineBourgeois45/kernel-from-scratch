@@ -7,7 +7,7 @@
   "target-c-int-width": "32",
   "os": "none",
   "linker-flavor": "ld",
-  "linker": "ld",
+  "linker": "lld",
   "panic-strategy": "abort",
   "disable-redzone": true,
   "features": "-mmx,-sse",
