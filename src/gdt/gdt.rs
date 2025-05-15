@@ -206,4 +206,5 @@ pub fn init_gdt() {
     unsafe {
         reloadSegments();
     }
+    kprint!(LogLevel::Info, "GDT initialized successfully\n");
 }

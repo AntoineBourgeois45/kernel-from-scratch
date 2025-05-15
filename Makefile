@@ -1,6 +1,7 @@
 NAME         := kernel.iso
 TARGET       := kernel
 BUILD_DIR    := build
+TARGET_JSON  := i386-unknown-none.json
 BOOT_OBJ     := $(BUILD_DIR)/boot.o
 EXC_OBJ      := $(BUILD_DIR)/exceptions.o
 GDT_HELPERS_OBJ := $(BUILD_DIR)/gdt_helpers.o
@@ -18,7 +19,6 @@ endif
 
 UNAME := $(shell uname)
 ifeq ($(findstring Darwin,$(UNAME)),Darwin)
-	TARGET_JSON  := i386-unknown-none_macos.json
 	LINKER_SCRIPT := boot/linker_macos.ls
   ifneq ($(shell command -v i386-elf-ld 2>/dev/null),)
     LD := i386-elf-ld
@@ -32,7 +32,6 @@ ifeq ($(findstring Darwin,$(UNAME)),Darwin)
 else
   LD := ld
   LINKER_SCRIPT := boot/linker.ls
-  TARGET_JSON  := i386-unknown-none.json
 endif
 
 .PHONY: all clean run
