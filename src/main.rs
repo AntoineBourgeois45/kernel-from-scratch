@@ -37,10 +37,6 @@ fn _force_breakpoint() {
     unsafe { asm!("int3"); }
 }
 
-extern "C" {
-    fn gdt_reload_segments();
-}
-
 #[no_mangle]
 pub extern "C" fn kernel_main() -> ! {
     unsafe { terminal().initialize() }
@@ -55,7 +51,6 @@ pub extern "C" fn kernel_main() -> ! {
 
 ");
     
-
     kprint!(LogLevel::Trace, "Initializing GDT...");
     init_gdt();
 
@@ -66,7 +61,7 @@ pub extern "C" fn kernel_main() -> ! {
     unsafe { asm!("sti") }
     kprint!(LogLevel::Info, "Interrupts enabled successfully\n");
 
-    _force_breakpoint();
+    // _force_breakpoint();
 
     loop {}
 }

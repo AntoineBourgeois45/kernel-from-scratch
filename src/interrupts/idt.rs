@@ -3,7 +3,83 @@ use core::arch::asm;
 use crate::interrupts::handlers::isr::double_fault::handle_double_fault;
 use crate::interrupts::pic::init_pic;
 use crate::{kprint, vga::terminal::LogLevel};
-use crate::gdt::gdt::GlobalDescriptorTable;
+
+// #[repr(C, packed)]
+// #[derive(Copy, Clone)]
+// pub struct IdtEntry {
+//     pub isr_low: u16,
+//     pub kernel_cs: u16,
+//     pub reserved: u8,
+//     pub attributes: u8,
+//     pub isr_high: u16
+// }
+
+// #[repr(C, align(16))]
+// struct AlignedIdt {
+//     entries: [IdtEntry; 256],
+// }
+
+// #[repr(C, packed)]
+// pub struct Idtr {
+//     pub limit: u16,
+//     pub base: u32,
+// }
+
+// static mut IDT: AlignedIdt = AlignedIdt {
+//     entries: [IdtEntry {
+//         isr_low: 0,
+//         kernel_cs: 0,
+//         reserved: 0,
+//         attributes: 0,
+//         isr_high: 0,
+//     }; 256],
+// };
+
+// static mut IDTR: Idtr = Idtr {
+//     limit: 0,
+//     base: 0,
+// };
+
+// #[no_mangle]
+// pub extern "x86-interrupt" fn exception_handler() -> ! {
+//     unsafe { asm!("cli", "hlt", options(noreturn)) }
+// }
+
+// pub fn idt_set_descriptor(vector: u8, isr: u32, flags: u8) {
+//     let descriptor = &mut unsafe { IDT.entries[vector as usize] };
+
+//     descriptor.isr_low = (isr as u32 & 0xFFFF) as u16;
+//     descriptor.kernel_cs = 0x10;
+
+//     descriptor.attributes = flags;
+//     descriptor.isr_high = ((isr as u32) >> 16) as u16;
+//     descriptor.reserved = 0;
+// }
+
+// static mut VECTORS: [bool; 256] = [false; 256]; 
+
+// extern "C" {
+//     static ISR_STUB_TABLE: [u32; 32];
+// }
+
+// pub fn init_idt() {
+//     unsafe {
+//         IDTR.base = &IDT.entries[0] as *const _ as u32;
+//         IDTR.limit = (core::mem::size_of::<IdtEntry>() * 256 - 1) as u16;
+
+//         for vector in 0..32 {
+//             let addr = ISR_STUB_TABLE[vector as usize];
+//             kprint!(LogLevel::Info, "ISR[{}] = 0x{:x}\n", vector, addr);
+
+//             idt_set_descriptor(vector, ISR_STUB_TABLE[vector as usize], 0x8E);
+//             VECTORS[vector as usize] = true;
+//         }
+
+//         asm!("lidt [{0}]", in(reg) &IDTR as *const Idtr, options(nostack));
+//         asm!("sti");
+//         kprint!(LogLevel::Info, "IDT initialized successfully\n");
+//     }
+// }
 
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
