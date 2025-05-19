@@ -1,6 +1,6 @@
 use core::arch::asm;
 
-use crate::interrupts::handlers::isr::double_fault::handle_double_fault;
+use crate::interrupts::handlers::isr;
 use crate::interrupts::pic::init_pic;
 use crate::{kprint, vga::terminal::LogLevel};
 
@@ -97,7 +97,6 @@ pub struct Idtr {
     pub base: u32,
 }
 
-#[link_section = ".data"]
 #[no_mangle]
 static mut IDT: [IdtEntry; 256] = [IdtEntry {
     isr_low: 0,
@@ -107,7 +106,6 @@ static mut IDT: [IdtEntry; 256] = [IdtEntry {
     isr_high: 0,
 }; 256];
 
-#[link_section = ".data"]
 #[no_mangle]
 static mut IDTR: Idtr = Idtr {
     limit: 0,
@@ -149,12 +147,6 @@ fn handle_debug() {
     kprint!(LogLevel::Error, "Debug exception\n");
 }
 
-fn handle_page_fault() {
-    let fault_addr: u32;
-    unsafe { asm!("mov {}, cr2", out(reg) fault_addr); }
-    kprint!(LogLevel::Error, "Page Fault at {:#010x}\n", fault_addr);
-}
-
 fn handle_unknown(int_no: u8) {
     kprint!(LogLevel::Error, "Unknown exception: {}\n", int_no);
 }
@@ -166,9 +158,9 @@ extern "C" fn exception_handler() {
     match int_no {
         0  => handle_divide_by_zero(),
         1  => handle_debug(),
-        8 => handle_double_fault(),
-        13 => handle_page_fault(),
-        14 => handle_page_fault(),
+        3  => isr::breakpoint::handle_breakpoint(),
+        8  => isr::double_fault::handle_double_fault(),
+        14 => isr::page_fault::handle_page_fault(),
         n  => handle_unknown(n),
     }
 }

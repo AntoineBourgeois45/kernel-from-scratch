@@ -35,7 +35,7 @@ pub fn encode_gdt_entry(target: &mut [u8], source: GDT) {
 pub fn load_gdt(gdt_table: &[u8]) {
     let limit = (gdt_table.len() - 1) as u16;
     let base = gdt_table.as_ptr();
-    
+        
     unsafe {
         setGdt(limit, base);
     }
