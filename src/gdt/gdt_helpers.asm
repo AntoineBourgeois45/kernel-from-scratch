@@ -1,9 +1,13 @@
 global setGdt
+global setIdt
 
 global reloadSegments
 
 section .data
 gdtr	dw 0
+		dd 0
+
+idtr	dw 0
 		dd 0
 
 section .text
@@ -14,6 +18,14 @@ setGdt:
     mov		[gdtr + 2], EAX
     lgdt	[gdtr]
 	ret
+
+setIdt:
+    mov     AX, [esp + 4]
+    mov     [idtr], AX
+    mov     EAX, [ESP + 8]
+    mov     [idtr + 2], EAX
+    lidt    [idtr]
+    ret
 
 reloadSegments:
 	jmp		0x10:.reload_CS
