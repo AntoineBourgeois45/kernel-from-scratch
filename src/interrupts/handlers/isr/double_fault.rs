@@ -4,12 +4,7 @@ use crate::{kprint, vga::terminal::LogLevel};
 
 pub fn handle_double_fault() {
     kprint!(LogLevel::Error, "Double fault exception\n");
-    unsafe {
-        asm!(
-            "cli",
-            "hlt",
-            "ret",
-            options(nostack)
-        );
+    loop {
+        
     }
 }

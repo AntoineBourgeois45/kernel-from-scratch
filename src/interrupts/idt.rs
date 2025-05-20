@@ -194,7 +194,7 @@ pub fn init_idt() {
             isr44 as u32, isr45 as u32, isr46 as u32, isr47 as u32,
         ];
         for (i, &addr) in handlers.iter().enumerate() {
-            set_handler(i, addr, 0x10, 0x8E);
+            set_handler(i, addr, 0x08, 0x8E);
         }
 
         init_pic(0x20, 0x28);

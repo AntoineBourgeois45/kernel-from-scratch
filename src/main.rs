@@ -38,6 +38,20 @@ fn _force_breakpoint() {
     unsafe { asm!("int3"); }
 }
 
+// fn test_keyboard_input() {
+//     kprint!(LogLevel::Info, "Test du clavier. Tapez quelque chose (enter pour terminer) :\n");
+    
+//     let mut input_buffer = [0u8; 64];
+    
+//     let count = ps2::keyboard::read_line(&mut input_buffer, 64);
+    
+//     kprint!(LogLevel::Info, "Vous avez tapé ({} caractères): ", count - 1);
+//     unsafe {
+//         terminal().write(&input_buffer[0..count-1]);
+//     }
+//     kprint!(LogLevel::Default, "\n");
+// }
+
 #[no_mangle]
 pub extern "C" fn kernel_main() -> ! {
     unsafe { terminal().initialize() }
@@ -62,7 +76,9 @@ pub extern "C" fn kernel_main() -> ! {
     unsafe { asm!("sti") }
     kprint!(LogLevel::Info, "Interrupts enabled successfully\n");
 
-    // _force_breakpoint();
+    // test_keyboard_input();
+
+    _force_breakpoint();
 
     loop {}
 }

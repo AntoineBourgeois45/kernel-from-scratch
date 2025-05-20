@@ -52,13 +52,13 @@ pub fn init_gdt() {
     };
     encode_gdt_entry(&mut gdt_table[0..8], null_entry);
 
-    let unused_entry = GDT {
-        limit: 0,
-        base: 0x0,
-        access_byte: 0,
-        flags: 0xC,
-    };
-    encode_gdt_entry(&mut gdt_table[8..16], unused_entry);
+    // let unused_entry = GDT {
+    //     limit: 0,
+    //     base: 0x0,
+    //     access_byte: 0,
+    //     flags: 0xC,
+    // };
+    // encode_gdt_entry(&mut gdt_table[8..16], unused_entry);
 
     let kernel_code_entry = GDT {
         limit: 0xFFFFF,
@@ -66,7 +66,7 @@ pub fn init_gdt() {
         access_byte: 0x9A,
         flags: 0xC,
     };
-    encode_gdt_entry(&mut gdt_table[16..24], kernel_code_entry);
+    encode_gdt_entry(&mut gdt_table[8..16], kernel_code_entry);
 
     let kernel_data_entry = GDT {
         limit: 0xFFFFF,
@@ -74,7 +74,7 @@ pub fn init_gdt() {
         access_byte: 0x92,
         flags: 0xC,
     };
-    encode_gdt_entry(&mut gdt_table[24..32], kernel_data_entry);
+    encode_gdt_entry(&mut gdt_table[16..24], kernel_data_entry);
     
     let user_code_entry = GDT {
         limit: 0xFFFFF,
@@ -82,7 +82,7 @@ pub fn init_gdt() {
         access_byte: 0xFA,
         flags: 0xC,
     };
-    encode_gdt_entry(&mut gdt_table[32..40], user_code_entry);
+    encode_gdt_entry(&mut gdt_table[24..32], user_code_entry);
 
     let user_data_entry = GDT {
         limit: 0xFFFFF,
@@ -90,7 +90,7 @@ pub fn init_gdt() {
         access_byte: 0xF2,
         flags: 0xC,
     };
-    encode_gdt_entry(&mut gdt_table[40..48], user_data_entry);
+    encode_gdt_entry(&mut gdt_table[32..40], user_data_entry);
     
     load_gdt(&gdt_table);
 

@@ -1,6 +1,5 @@
-use crate::{kprint, vga::terminal::LogLevel};
+use crate::{kprint, ps2::keyboard, vga::terminal::LogLevel};
 
 pub fn handle_keyboard(scancode: u8) {
-    kprint!(LogLevel::Debug, "Keyboard scancode: {}\n", scancode);
+    keyboard::handle_keyboard_input(scancode);
 }
-
