@@ -33,6 +33,7 @@ fn _force_division_by_zero() {
     }
 }
 
+#[no_mangle]
 fn _force_breakpoint() {
     unsafe { asm!("int3"); }
 }
@@ -61,7 +62,7 @@ pub extern "C" fn kernel_main() -> ! {
     unsafe { asm!("sti") }
     kprint!(LogLevel::Info, "Interrupts enabled successfully\n");
 
-    _force_breakpoint();
+    // _force_breakpoint();
 
     loop {}
 }
