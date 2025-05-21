@@ -157,6 +157,7 @@ extern "C" fn exception_handler(regs: &Registers) {
         1  => handle_debug(),
         3  => isr::breakpoint::handle_breakpoint(),
         8  => isr::double_fault::handle_double_fault(),
+        13 => isr::general_protection_fault::handle_general_protection_fault(),
         14 => isr::page_fault::handle_page_fault(),
         n  => handle_unknown(n),
     }
