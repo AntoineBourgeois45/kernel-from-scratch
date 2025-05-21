@@ -28,10 +28,10 @@ setIdt:
     ret
 
 reloadSegments:
-	jmp		0x08:.reload_CS
+	jmp		0x10:.reload_CS
 
 .reload_CS:
-	mov		AX, 0x10
+	mov		AX, 0x18
 	mov		DS, AX
 	mov		ES, AX
 	mov		FS, AX

@@ -1,214 +1,467 @@
-BITS 32
+; BITS 32
 
-section .data
-global interrupt_number
-interrupt_number: db 0
+; section .data
+; global interrupt_number
+; interrupt_number: db 0
 
-section .text
-extern exception_handler
-extern handle_interrupt
-
-; Common handler for CPU exceptions
-%macro ISR_COMMON 0
-    ; Save all registers
-    pusha
-    push ds
-    push es
-    push fs
-    push gs
-    
-    ; Load kernel data segments
-    mov ax, 0x10  ; Kernel data segment selector
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    
-    ; Call the C handler
-    call exception_handler
-    
-    ; We'll never return here for exceptions that use the ! return type,
-    ; but in case we handle some exceptions differently in the future:
-    pop gs
-    pop fs
-    pop es
-    pop ds
-    popa
-    add esp, 8  ; Clean up error code and interrupt number
-    iret
-%endmacro
-
-; Common handler for hardware interrupts (IRQs)
-%macro IRQ_COMMON 0
-    ; Save all registers
-    pusha
-    push ds
-    push es
-    push fs
-    push gs
-    
-    ; Load kernel data segments
-    mov ax, 0x10  ; Kernel data segment selector
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    
-    ; Call the C handler with interrupt number as parameter
-    movzx eax, byte [interrupt_number]
-    push eax
-    call handle_interrupt
-    add esp, 4  ; Clean up parameter
-    
-    ; Restore registers
-    pop gs
-    pop fs
-    pop es
-    pop ds
-    popa
-    add esp, 8  ; Clean up error code and interrupt number
-    iret
-%endmacro
-
-; ISR handlers for CPU exceptions
-%macro ISR_NOERRCODE 1
-global isr%1
-isr%1:
-    push dword 0  ; Push dummy error code
-    push dword %1 ; Push interrupt number
-    mov byte [interrupt_number], %1
-    jmp isr_common
-%endmacro
-
-%macro ISR_ERRCODE 1
-global isr%1
-isr%1:
-    ; Error code already pushed by CPU
-    push dword %1 ; Push interrupt number
-    mov byte [interrupt_number], %1
-    jmp isr_common
-%endmacro
-
-; IRQ handlers for hardware interrupts
-%macro IRQ 2
-global isr%1
-isr%1:
-    push dword 0  ; Push dummy error code
-    push dword %1 ; Push interrupt number
-    mov byte [interrupt_number], %1
-    jmp irq_common
-%endmacro
-
-; Exception handlers
-ISR_NOERRCODE 0  ; Divide by zero
-ISR_NOERRCODE 1  ; Debug
-ISR_NOERRCODE 2  ; Non-maskable interrupt
-ISR_NOERRCODE 3  ; Breakpoint
-ISR_NOERRCODE 4  ; Overflow
-ISR_NOERRCODE 5  ; Bound range exceeded
-ISR_NOERRCODE 6  ; Invalid opcode
-ISR_NOERRCODE 7  ; Device not available
-ISR_ERRCODE   8  ; Double fault
-ISR_NOERRCODE 9  ; Coprocessor segment overrun
-ISR_ERRCODE   10 ; Invalid TSS
-ISR_ERRCODE   11 ; Segment not present
-ISR_ERRCODE   12 ; Stack-segment fault
-ISR_ERRCODE   13 ; General protection fault
-ISR_ERRCODE   14 ; Page fault
-ISR_NOERRCODE 15 ; Reserved
-ISR_NOERRCODE 16 ; x87 FPU error
-ISR_ERRCODE   17 ; Alignment check
-ISR_NOERRCODE 18 ; Machine check
-ISR_NOERRCODE 19 ; SIMD floating-point exception
-ISR_NOERRCODE 20 ; Virtualization exception
-ISR_NOERRCODE 21 ; Reserved
-ISR_NOERRCODE 22 ; Reserved
-ISR_NOERRCODE 23 ; Reserved
-ISR_NOERRCODE 24 ; Reserved
-ISR_NOERRCODE 25 ; Reserved
-ISR_NOERRCODE 26 ; Reserved
-ISR_NOERRCODE 27 ; Reserved
-ISR_NOERRCODE 28 ; Reserved
-ISR_NOERRCODE 29 ; Reserved
-ISR_NOERRCODE 30 ; Reserved
-ISR_NOERRCODE 31 ; Reserved
-
-; IRQ handlers (hardware interrupts)
-IRQ 32, 0  ; IRQ0: Timer
-IRQ 33, 1  ; IRQ1: Keyboard
-IRQ 34, 2  ; IRQ2: Cascade for 8259A Slave controller
-IRQ 35, 3  ; IRQ3: COM2
-IRQ 36, 4  ; IRQ4: COM1
-IRQ 37, 5  ; IRQ5: LPT2
-IRQ 38, 6  ; IRQ6: Floppy disk
-IRQ 39, 7  ; IRQ7: LPT1
-IRQ 40, 8  ; IRQ8: CMOS Real-time clock
-IRQ 41, 9  ; IRQ9: Free / SCSI / NIC
-IRQ 42, 10 ; IRQ10: Free / SCSI / NIC
-IRQ 43, 11 ; IRQ11: Free / SCSI / NIC
-IRQ 44, 12 ; IRQ12: PS/2 Mouse
-IRQ 45, 13 ; IRQ13: FPU / Coprocessor / Inter-processor
-IRQ 46, 14 ; IRQ14: Primary ATA Hard Disk
-IRQ 47, 15 ; IRQ15: Secondary ATA Hard Disk
-
-; Common handlers
-isr_common:
-    ISR_COMMON
-
-irq_common:
-    IRQ_COMMON
-
+; section .text
 ; extern exception_handler
+; extern handle_interrupt
 
-; %macro isr_err_stub 1
-; isr_stub_%+%1:
+; ; Common handler for CPU exceptions
+; %macro ISR_COMMON 0
+;     ; Save all registers
+;     pusha
+;     push ds
+;     push es
+;     push fs
+;     push gs
+    
+;     ; Load kernel data segments
+;     mov ax, 0x18  ; Kernel data segment selector
+;     mov ds, ax
+;     mov es, ax
+;     mov fs, ax
+;     mov gs, ax
+    
+;     ; Call the C handler
 ;     call exception_handler
+    
+;     ; We'll never return here for exceptions that use the ! return type,
+;     ; but in case we handle some exceptions differently in the future:
+;     pop gs
+;     pop fs
+;     pop es
+;     pop ds
+;     popa
+;     add esp, 8  ; Clean up error code and interrupt number
 ;     iret
 ; %endmacro
-; %macro isr_no_err_stub 1
-; isr_stub_%+%1:
-;     call exception_handler
+
+; ; Common handler for hardware interrupts (IRQs)
+; %macro IRQ_COMMON 0
+;     ; Save all registers
+;     pusha
+;     push ds
+;     push es
+;     push fs
+;     push gs
+    
+;     ; Load kernel data segments
+;     mov ax, 0x18  ; Kernel data segment selector
+;     mov ds, ax
+;     mov es, ax
+;     mov fs, ax
+;     mov gs, ax
+    
+;     ; Call the C handler with interrupt number as parameter
+;     movzx eax, byte [interrupt_number]
+;     push eax
+;     call handle_interrupt
+;     add esp, 4  ; Clean up parameter
+    
+;     ; Restore registers
+;     pop gs
+;     pop fs
+;     pop es
+;     pop ds
+;     popa
+;     add esp, 8  ; Clean up error code and interrupt number
 ;     iret
 ; %endmacro
 
-; isr_no_err_stub 0
-; isr_no_err_stub 1
-; isr_no_err_stub 2
-; isr_no_err_stub 3
-; isr_no_err_stub 4
-; isr_no_err_stub 5
-; isr_no_err_stub 6
-; isr_no_err_stub 7
-; isr_err_stub 8
-; isr_no_err_stub 9
-; isr_err_stub 10
-; isr_err_stub 11
-; isr_err_stub 12
-; isr_err_stub 13
-; isr_err_stub 14
-; isr_no_err_stub 15
-; isr_no_err_stub 16
-; isr_err_stub    17
-; isr_no_err_stub 18
-; isr_no_err_stub 19
-; isr_no_err_stub 20
-; isr_no_err_stub 21
-; isr_no_err_stub 22
-; isr_no_err_stub 23
-; isr_no_err_stub 24
-; isr_no_err_stub 25
-; isr_no_err_stub 26
-; isr_no_err_stub 27
-; isr_no_err_stub 28
-; isr_no_err_stub 29
-; isr_err_stub    30
-; isr_no_err_stub 31
+; ; ISR handlers for CPU exceptions
+; %macro ISR_NOERRCODE 1
+; global isr%1
+; isr%1:
+;     push dword 0  ; Push dummy error code
+;     push dword %1 ; Push interrupt number
+;     mov byte [interrupt_number], %1
+;     jmp isr_common
+; %endmacro
 
-; global ISR_STUB_TABLE
+; %macro ISR_ERRCODE 1
+; global isr%1
+; isr%1:
+;     ; Error code already pushed by CPU
+;     push dword %1 ; Push interrupt number
+;     mov byte [interrupt_number], %1
+;     jmp isr_common
+; %endmacro
 
-; ISR_STUB_TABLE:
-; %assign i 0
-; %rep    32
-;     dd isr_stub_%+i
-; %assign i i+1
-; %endrep
+; ; IRQ handlers for hardware interrupts
+; %macro IRQ 2
+; global isr%1
+; isr%1:
+;     push dword 0  ; Push dummy error code
+;     push dword %1 ; Push interrupt number
+;     mov byte [interrupt_number], %1
+;     jmp irq_common
+; %endmacro
+
+; ; Exception handlers
+; ISR_NOERRCODE 0  ; Divide by zero
+; ISR_NOERRCODE 1  ; Debug
+; ISR_NOERRCODE 2  ; Non-maskable interrupt
+; ISR_NOERRCODE 3  ; Breakpoint
+; ISR_NOERRCODE 4  ; Overflow
+; ISR_NOERRCODE 5  ; Bound range exceeded
+; ISR_NOERRCODE 6  ; Invalid opcode
+; ISR_NOERRCODE 7  ; Device not available
+; ISR_ERRCODE   8  ; Double fault
+; ISR_NOERRCODE 9  ; Coprocessor segment overrun
+; ISR_ERRCODE   10 ; Invalid TSS
+; ISR_ERRCODE   11 ; Segment not present
+; ISR_ERRCODE   12 ; Stack-segment fault
+; ISR_ERRCODE   13 ; General protection fault
+; ISR_ERRCODE   14 ; Page fault
+; ISR_NOERRCODE 15 ; Reserved
+; ISR_NOERRCODE 16 ; x87 FPU error
+; ISR_ERRCODE   17 ; Alignment check
+; ISR_NOERRCODE 18 ; Machine check
+; ISR_NOERRCODE 19 ; SIMD floating-point exception
+; ISR_NOERRCODE 20 ; Virtualization exception
+; ISR_NOERRCODE 21 ; Reserved
+; ISR_NOERRCODE 22 ; Reserved
+; ISR_NOERRCODE 23 ; Reserved
+; ISR_NOERRCODE 24 ; Reserved
+; ISR_NOERRCODE 25 ; Reserved
+; ISR_NOERRCODE 26 ; Reserved
+; ISR_NOERRCODE 27 ; Reserved
+; ISR_NOERRCODE 28 ; Reserved
+; ISR_NOERRCODE 29 ; Reserved
+; ISR_NOERRCODE 30 ; Reserved
+; ISR_NOERRCODE 31 ; Reserved
+
+; ; IRQ handlers (hardware interrupts)
+; IRQ 32, 0  ; IRQ0: Timer
+; IRQ 33, 1  ; IRQ1: Keyboard
+; IRQ 34, 2  ; IRQ2: Cascade for 8259A Slave controller
+; IRQ 35, 3  ; IRQ3: COM2
+; IRQ 36, 4  ; IRQ4: COM1
+; IRQ 37, 5  ; IRQ5: LPT2
+; IRQ 38, 6  ; IRQ6: Floppy disk
+; IRQ 39, 7  ; IRQ7: LPT1
+; IRQ 40, 8  ; IRQ8: CMOS Real-time clock
+; IRQ 41, 9  ; IRQ9: Free / SCSI / NIC
+; IRQ 42, 10 ; IRQ10: Free / SCSI / NIC
+; IRQ 43, 11 ; IRQ11: Free / SCSI / NIC
+; IRQ 44, 12 ; IRQ12: PS/2 Mouse
+; IRQ 45, 13 ; IRQ13: FPU / Coprocessor / Inter-processor
+; IRQ 46, 14 ; IRQ14: Primary ATA Hard Disk
+; IRQ 47, 15 ; IRQ15: Secondary ATA Hard Disk
+
+; isr_common:
+;     ISR_COMMON
+
+; irq_common:
+;     IRQ_COMMON
+
+[bits 32]
+
+extern exception_handler
+
+%macro ISR_NOERRORCODE 1
+
+global isr%1:
+isr%1:
+    push 0
+    push %1
+    jmp isr_common
+
+%endmacro
+
+%macro ISR_ERRORCODE 1
+
+global isr%1:
+isr%1:
+    push %1
+    jmp isr_common
+
+%endmacro
+
+
+ISR_NOERRORCODE 0
+ISR_NOERRORCODE 1
+ISR_NOERRORCODE 2
+ISR_NOERRORCODE 3
+ISR_NOERRORCODE 4
+ISR_NOERRORCODE 5
+ISR_NOERRORCODE 6
+ISR_NOERRORCODE 7
+ISR_ERRORCODE 8
+ISR_NOERRORCODE 9
+ISR_ERRORCODE 10
+ISR_ERRORCODE 11
+ISR_ERRORCODE 12
+ISR_ERRORCODE 13
+ISR_ERRORCODE 14
+ISR_NOERRORCODE 15
+ISR_NOERRORCODE 16
+ISR_ERRORCODE 17
+ISR_NOERRORCODE 18
+ISR_NOERRORCODE 19
+ISR_NOERRORCODE 20
+ISR_ERRORCODE 21
+ISR_NOERRORCODE 22
+ISR_NOERRORCODE 23
+ISR_NOERRORCODE 24
+ISR_NOERRORCODE 25
+ISR_NOERRORCODE 26
+ISR_NOERRORCODE 27
+ISR_NOERRORCODE 28
+ISR_NOERRORCODE 29
+ISR_NOERRORCODE 30
+ISR_NOERRORCODE 31
+ISR_NOERRORCODE 32
+ISR_NOERRORCODE 33
+ISR_NOERRORCODE 34
+ISR_NOERRORCODE 35
+ISR_NOERRORCODE 36
+ISR_NOERRORCODE 37
+ISR_NOERRORCODE 38
+ISR_NOERRORCODE 39
+ISR_NOERRORCODE 40
+ISR_NOERRORCODE 41
+ISR_NOERRORCODE 42
+ISR_NOERRORCODE 43
+ISR_NOERRORCODE 44
+ISR_NOERRORCODE 45
+ISR_NOERRORCODE 46
+ISR_NOERRORCODE 47
+ISR_NOERRORCODE 48
+ISR_NOERRORCODE 49
+ISR_NOERRORCODE 50
+ISR_NOERRORCODE 51
+ISR_NOERRORCODE 52
+ISR_NOERRORCODE 53
+ISR_NOERRORCODE 54
+ISR_NOERRORCODE 55
+ISR_NOERRORCODE 56
+ISR_NOERRORCODE 57
+ISR_NOERRORCODE 58
+ISR_NOERRORCODE 59
+ISR_NOERRORCODE 60
+ISR_NOERRORCODE 61
+ISR_NOERRORCODE 62
+ISR_NOERRORCODE 63
+ISR_NOERRORCODE 64
+ISR_NOERRORCODE 65
+ISR_NOERRORCODE 66
+ISR_NOERRORCODE 67
+ISR_NOERRORCODE 68
+ISR_NOERRORCODE 69
+ISR_NOERRORCODE 70
+ISR_NOERRORCODE 71
+ISR_NOERRORCODE 72
+ISR_NOERRORCODE 73
+ISR_NOERRORCODE 74
+ISR_NOERRORCODE 75
+ISR_NOERRORCODE 76
+ISR_NOERRORCODE 77
+ISR_NOERRORCODE 78
+ISR_NOERRORCODE 79
+ISR_NOERRORCODE 80
+ISR_NOERRORCODE 81
+ISR_NOERRORCODE 82
+ISR_NOERRORCODE 83
+ISR_NOERRORCODE 84
+ISR_NOERRORCODE 85
+ISR_NOERRORCODE 86
+ISR_NOERRORCODE 87
+ISR_NOERRORCODE 88
+ISR_NOERRORCODE 89
+ISR_NOERRORCODE 90
+ISR_NOERRORCODE 91
+ISR_NOERRORCODE 92
+ISR_NOERRORCODE 93
+ISR_NOERRORCODE 94
+ISR_NOERRORCODE 95
+ISR_NOERRORCODE 96
+ISR_NOERRORCODE 97
+ISR_NOERRORCODE 98
+ISR_NOERRORCODE 99
+ISR_NOERRORCODE 100
+ISR_NOERRORCODE 101
+ISR_NOERRORCODE 102
+ISR_NOERRORCODE 103
+ISR_NOERRORCODE 104
+ISR_NOERRORCODE 105
+ISR_NOERRORCODE 106
+ISR_NOERRORCODE 107
+ISR_NOERRORCODE 108
+ISR_NOERRORCODE 109
+ISR_NOERRORCODE 110
+ISR_NOERRORCODE 111
+ISR_NOERRORCODE 112
+ISR_NOERRORCODE 113
+ISR_NOERRORCODE 114
+ISR_NOERRORCODE 115
+ISR_NOERRORCODE 116
+ISR_NOERRORCODE 117
+ISR_NOERRORCODE 118
+ISR_NOERRORCODE 119
+ISR_NOERRORCODE 120
+ISR_NOERRORCODE 121
+ISR_NOERRORCODE 122
+ISR_NOERRORCODE 123
+ISR_NOERRORCODE 124
+ISR_NOERRORCODE 125
+ISR_NOERRORCODE 126
+ISR_NOERRORCODE 127
+ISR_NOERRORCODE 128
+ISR_NOERRORCODE 129
+ISR_NOERRORCODE 130
+ISR_NOERRORCODE 131
+ISR_NOERRORCODE 132
+ISR_NOERRORCODE 133
+ISR_NOERRORCODE 134
+ISR_NOERRORCODE 135
+ISR_NOERRORCODE 136
+ISR_NOERRORCODE 137
+ISR_NOERRORCODE 138
+ISR_NOERRORCODE 139
+ISR_NOERRORCODE 140
+ISR_NOERRORCODE 141
+ISR_NOERRORCODE 142
+ISR_NOERRORCODE 143
+ISR_NOERRORCODE 144
+ISR_NOERRORCODE 145
+ISR_NOERRORCODE 146
+ISR_NOERRORCODE 147
+ISR_NOERRORCODE 148
+ISR_NOERRORCODE 149
+ISR_NOERRORCODE 150
+ISR_NOERRORCODE 151
+ISR_NOERRORCODE 152
+ISR_NOERRORCODE 153
+ISR_NOERRORCODE 154
+ISR_NOERRORCODE 155
+ISR_NOERRORCODE 156
+ISR_NOERRORCODE 157
+ISR_NOERRORCODE 158
+ISR_NOERRORCODE 159
+ISR_NOERRORCODE 160
+ISR_NOERRORCODE 161
+ISR_NOERRORCODE 162
+ISR_NOERRORCODE 163
+ISR_NOERRORCODE 164
+ISR_NOERRORCODE 165
+ISR_NOERRORCODE 166
+ISR_NOERRORCODE 167
+ISR_NOERRORCODE 168
+ISR_NOERRORCODE 169
+ISR_NOERRORCODE 170
+ISR_NOERRORCODE 171
+ISR_NOERRORCODE 172
+ISR_NOERRORCODE 173
+ISR_NOERRORCODE 174
+ISR_NOERRORCODE 175
+ISR_NOERRORCODE 176
+ISR_NOERRORCODE 177
+ISR_NOERRORCODE 178
+ISR_NOERRORCODE 179
+ISR_NOERRORCODE 180
+ISR_NOERRORCODE 181
+ISR_NOERRORCODE 182
+ISR_NOERRORCODE 183
+ISR_NOERRORCODE 184
+ISR_NOERRORCODE 185
+ISR_NOERRORCODE 186
+ISR_NOERRORCODE 187
+ISR_NOERRORCODE 188
+ISR_NOERRORCODE 189
+ISR_NOERRORCODE 190
+ISR_NOERRORCODE 191
+ISR_NOERRORCODE 192
+ISR_NOERRORCODE 193
+ISR_NOERRORCODE 194
+ISR_NOERRORCODE 195
+ISR_NOERRORCODE 196
+ISR_NOERRORCODE 197
+ISR_NOERRORCODE 198
+ISR_NOERRORCODE 199
+ISR_NOERRORCODE 200
+ISR_NOERRORCODE 201
+ISR_NOERRORCODE 202
+ISR_NOERRORCODE 203
+ISR_NOERRORCODE 204
+ISR_NOERRORCODE 205
+ISR_NOERRORCODE 206
+ISR_NOERRORCODE 207
+ISR_NOERRORCODE 208
+ISR_NOERRORCODE 209
+ISR_NOERRORCODE 210
+ISR_NOERRORCODE 211
+ISR_NOERRORCODE 212
+ISR_NOERRORCODE 213
+ISR_NOERRORCODE 214
+ISR_NOERRORCODE 215
+ISR_NOERRORCODE 216
+ISR_NOERRORCODE 217
+ISR_NOERRORCODE 218
+ISR_NOERRORCODE 219
+ISR_NOERRORCODE 220
+ISR_NOERRORCODE 221
+ISR_NOERRORCODE 222
+ISR_NOERRORCODE 223
+ISR_NOERRORCODE 224
+ISR_NOERRORCODE 225
+ISR_NOERRORCODE 226
+ISR_NOERRORCODE 227
+ISR_NOERRORCODE 228
+ISR_NOERRORCODE 229
+ISR_NOERRORCODE 230
+ISR_NOERRORCODE 231
+ISR_NOERRORCODE 232
+ISR_NOERRORCODE 233
+ISR_NOERRORCODE 234
+ISR_NOERRORCODE 235
+ISR_NOERRORCODE 236
+ISR_NOERRORCODE 237
+ISR_NOERRORCODE 238
+ISR_NOERRORCODE 239
+ISR_NOERRORCODE 240
+ISR_NOERRORCODE 241
+ISR_NOERRORCODE 242
+ISR_NOERRORCODE 243
+ISR_NOERRORCODE 244
+ISR_NOERRORCODE 245
+ISR_NOERRORCODE 246
+ISR_NOERRORCODE 247
+ISR_NOERRORCODE 248
+ISR_NOERRORCODE 249
+ISR_NOERRORCODE 250
+ISR_NOERRORCODE 251
+ISR_NOERRORCODE 252
+ISR_NOERRORCODE 253
+ISR_NOERRORCODE 254
+ISR_NOERRORCODE 255
+
+isr_common:
+    pusha
+
+    xor eax, eax
+    mov ax, ds
+    push eax
+
+    mov ax, 0x18
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+
+    push esp
+    call exception_handler
+    add esp, 4
+
+    pop eax
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+
+    popa
+    add esp, 8
+    iret
+
