@@ -14,6 +14,14 @@ use vga::terminal::LogLevel;
 
 use crate::vga::terminal::terminal;
 
+
+#[repr(C, packed)]
+struct MultibootInfo {
+    flags: u32,
+    mem_lower: u32,
+    mem_upper: u32,
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn memcpy(dest: *mut u8, src: *const u8, n: usize) -> *mut u8 {
     for i in 0..n {
@@ -53,7 +61,7 @@ fn _force_breakpoint() {
 // }
 
 #[no_mangle]
-pub extern "C" fn kernel_main() -> ! {
+pub extern "C" fn kernel_main(multiboot_header: u8) -> ! {
     unsafe { terminal().initialize() }
     kprint!(LogLevel::Default, 
 "    ###    ####
@@ -65,6 +73,8 @@ pub extern "C" fn kernel_main() -> ! {
      ##   ######
 
 ");
+    
+    kprint!(LogLevel::Info, "Kernel starting with multiboot header: {}\n", multiboot_header);
     
     kprint!(LogLevel::Trace, "Initializing GDT...");
     init_gdt();
