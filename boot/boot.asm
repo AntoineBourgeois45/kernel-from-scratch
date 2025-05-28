@@ -24,7 +24,8 @@ global _start
 _start:
 	mov esp, stack_top
 
-	push 0x41
+	push ebx
+	push eax
 
 	call kernel_main
 

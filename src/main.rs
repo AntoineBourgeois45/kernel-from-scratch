@@ -16,7 +16,7 @@ use crate::vga::terminal::terminal;
 
 
 #[repr(C, packed)]
-struct MultibootInfo {
+pub struct MultibootInfo {
     flags: u32,
     mem_lower: u32,
     mem_upper: u32,
@@ -61,7 +61,7 @@ fn _force_breakpoint() {
 // }
 
 #[no_mangle]
-pub extern "C" fn kernel_main(multiboot_header: u8) -> ! {
+pub extern "C" fn kernel_main(multiboot_magic: u32, info: *const MultibootInfo) -> ! {
     unsafe { terminal().initialize() }
     kprint!(LogLevel::Default, 
 "    ###    ####
@@ -73,8 +73,12 @@ pub extern "C" fn kernel_main(multiboot_header: u8) -> ! {
      ##   ######
 
 ");
-    
-    kprint!(LogLevel::Info, "Kernel starting with multiboot header: {}\n", multiboot_header);
+        
+    unsafe { kprint!(LogLevel::Default, "Flags: {0:b}\n", (*info).flags as i32);
+        kprint!(LogLevel::Default, "Memory lower: {} KB\n", (*info).mem_lower as u32);
+        kprint!(LogLevel::Default, "Memory upper: {} KB\n", (*info).mem_upper as u32);
+        kprint!(LogLevel::Default, "Multiboot magic: {}\n", multiboot_magic as i32);
+    }
     
     kprint!(LogLevel::Trace, "Initializing GDT...");
     init_gdt();
