@@ -61,34 +61,35 @@ fn _force_breakpoint() {
 // }
 
 #[no_mangle]
-pub extern "C" fn kernel_main(multiboot_magic: u32, info: *const MultibootInfo) -> ! {
+pub extern "C" fn kernel_main(multiboot_magic: u32, info: *const *const u8) -> ! {
     unsafe { terminal().initialize() }
-    kprint!(LogLevel::Default, 
-"    ###    ####
-   ####   ##  ##
-  ## ##       ##
- ##  ##     ###
- #######   ##
-     ##   ##  ##
-     ##   ######
 
-");
-        
-    unsafe { kprint!(LogLevel::Default, "Flags: {0:b}\n", (*info).flags as i32);
-        kprint!(LogLevel::Default, "Memory lower: {} KB\n", (*info).mem_lower as u32);
-        kprint!(LogLevel::Default, "Memory upper: {} KB\n", (*info).mem_upper as u32);
-        kprint!(LogLevel::Default, "Multiboot magic: {}\n", multiboot_magic as i32);
+    unsafe {
+        let bootloader_name = *info.add(64 / 4);
+        let name_slice = core::slice::from_raw_parts(bootloader_name, 4);
+        terminal().write(name_slice);
     }
+
+//     kprint!(LogLevel::Default, 
+// "    ###    ####
+//    ####   ##  ##
+//   ## ##       ##
+//  ##  ##     ###
+//  #######   ##
+//      ##   ##  ##
+//      ##   ######
+
+// ");
     
-    kprint!(LogLevel::Trace, "Initializing GDT...");
-    init_gdt();
+    // kprint!(LogLevel::Trace, "Initializing GDT...");
+    // init_gdt();
 
-    kprint!(LogLevel::Trace, "Initializing IDT...");
-    init_idt();
+    // kprint!(LogLevel::Trace, "Initializing IDT...");
+    // init_idt();
 
-    kprint!(LogLevel::Trace, "Enabling interrupts...");
-    unsafe { asm!("sti") }
-    kprint!(LogLevel::Info, "Interrupts enabled successfully\n");
+    // kprint!(LogLevel::Trace, "Enabling interrupts...");
+    // unsafe { asm!("sti") }
+    // kprint!(LogLevel::Info, "Interrupts enabled successfully\n");
 
     // unsafe {
     //     asm!("int $0x2");
