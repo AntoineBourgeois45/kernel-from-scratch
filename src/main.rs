@@ -6,100 +6,74 @@ pub mod vga;
 pub mod ps2;
 pub mod interrupts;
 pub mod gdt;
+pub mod libc;
+pub mod multiboot;
 
-use core::{arch::asm, panic::PanicInfo};
-use gdt::gdt::init_gdt;
-use interrupts::idt::init_idt;
+use core::panic::PanicInfo;
+use ps2::{controller::PS2Controller, keyboard::KeyboardState};
 use vga::terminal::LogLevel;
+use multiboot::{MultibootInfo, MultibootMmapEntry};
 
 use crate::vga::terminal::terminal;
 
+static mut KEYBOARD_STATE: KeyboardState = KeyboardState {
+    shift_pressed: false,
+    ctrl_pressed: false,
+    alt_pressed: false,
+};
 
-#[repr(C, packed)]
-pub struct MultibootInfo {
-    flags: u32,
-    mem_lower: u32,
-    mem_upper: u32,
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn memcpy(dest: *mut u8, src: *const u8, n: usize) -> *mut u8 {
-    for i in 0..n {
-        *dest.add(i) = *src.add(i);
-    }
-    dest
-}
-
-fn _force_division_by_zero() {
-    unsafe {
-        asm!(
-            "mov eax, 42",
-            "mov ebx, 0",
-            "div ebx",
-            options(nostack, nomem, preserves_flags)
-        );
-    }
-}
+static mut PS2_CONTROLLER: PS2Controller = PS2Controller {
+    mouse_cycle: 0,
+    mouse_packet: [0; 3],
+};
 
 #[no_mangle]
-fn _force_breakpoint() {
-    unsafe { asm!("int3"); }
-}
+pub extern "C" fn kernel_main(info: *const MultibootInfo) -> ! {
+    unsafe { terminal().initialize();
+        PS2_CONTROLLER.init_mouse();
+     }
 
-// fn test_keyboard_input() {
-//     kprint!(LogLevel::Info, "Test du clavier. Tapez quelque chose (enter pour terminer) :\n");
-    
-//     let mut input_buffer = [0u8; 64];
-    
-//     let count = ps2::keyboard::read_line(&mut input_buffer, 64);
-    
-//     kprint!(LogLevel::Info, "Vous avez tapé ({} caractères): ", count - 1);
-//     unsafe {
-//         terminal().write(&input_buffer[0..count-1]);
-//     }
-//     kprint!(LogLevel::Default, "\n");
-// }
+    kprint!(LogLevel::Default, 
+"    ###    ####
+   ####   ##  ##
+  ## ##       ##
+ ##  ##     ###
+ #######   ##
+     ##   ##  ##
+     ##   ######
 
-#[no_mangle]
-pub extern "C" fn kernel_main(multiboot_magic: u32, info: *const *const u8) -> ! {
-    unsafe { terminal().initialize() }
+");
 
     unsafe {
-        let bootloader_name = *info.add(64 / 4);
-        let name_slice = core::slice::from_raw_parts(bootloader_name, 4);
-        terminal().write(name_slice);
+        let mmap_length = (*info).mmap_length;
+        kprint!(LogLevel::Default, "{}", mmap_length);
+        for i in 0.. mmap_length {
+            let p = ((*info).mmap_addr + core::mem::size_of::<MultibootMmapEntry>() as u32 * i) as *const MultibootMmapEntry;
+            let size = (*p).size;
+            let len = (*p).len;
+            let addr = (*p).addr;
+            kprint!(LogLevel::Default, "size: {}, len: {}, addr: {}", size, len, addr);
+        }
     }
-
-//     kprint!(LogLevel::Default, 
-// "    ###    ####
-//    ####   ##  ##
-//   ## ##       ##
-//  ##  ##     ###
-//  #######   ##
-//      ##   ##  ##
-//      ##   ######
-
-// ");
-    
-    // kprint!(LogLevel::Trace, "Initializing GDT...");
-    // init_gdt();
-
-    // kprint!(LogLevel::Trace, "Initializing IDT...");
-    // init_idt();
-
-    // kprint!(LogLevel::Trace, "Enabling interrupts...");
-    // unsafe { asm!("sti") }
-    // kprint!(LogLevel::Info, "Interrupts enabled successfully\n");
-
-    // unsafe {
-    //     asm!("int $0x2");
-    // }
-
-    // test_keyboard_input();
-
-    // _force_breakpoint();
-
-    loop {}
+    loop {
+        unsafe {
+            if PS2_CONTROLLER.has_data() {
+                let data = PS2_CONTROLLER.read_data();
+                
+                if PS2_CONTROLLER.is_mouse_data() {
+                    if let Some(mouse_event) = PS2_CONTROLLER.process_mouse_data(data) {
+                        // handle_mouse_event(mouse_event);
+                        kprint!(LogLevel::Default, "Mouse Event: {:?}", mouse_event);
+                    }
+                } else {
+                    if let Some(character) = KEYBOARD_STATE.process_scancode(data) {
+                        // handle_keyboard_input(character);
+                        kprint!(LogLevel::Default, "Key Pressed: {}", character);
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[panic_handler]

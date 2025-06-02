@@ -45,9 +45,9 @@ extern "C" fn handle_interrupt(interrupt_number: u8) {
             32 => {
                 irq::timer::handle_timer();
             }
-            33 => {
-                irq::keyboard::handle_keyboard(inb(0x60));
-            }
+            // 33 => {
+            //     irq::keyboard::handle_keyboard(inb(0x60));
+            // }
             _ => {
                 kprint!(LogLevel::Error, "Unhandled interrupt: {}\n", interrupt_number);
             }

@@ -118,13 +118,13 @@ impl Terminal {
         for x in 0..VGA_WIDTH {
             write_volatile(self.buffer.add(last_row + x), blank);
         }
-        self.row -= VGA_HEIGHT - 1;
+        self.row = VGA_HEIGHT - 1;
     }
 
     pub unsafe fn new_line(&mut self) {
         self.column = 0;
         self.row += 1;
-        if self.row == VGA_HEIGHT {
+        if self.row >= VGA_HEIGHT {
             self.scroll();
         }
     }
@@ -135,12 +135,8 @@ impl Terminal {
             byte => {
                 self.put_entry_at(byte, self.color, self.column, self.row);
                 self.column += 1;
-                if self.column == VGA_WIDTH {
-                    self.column = 0;
-                    self.row += 1;
-                    if self.row == VGA_HEIGHT {
-                        self.row = 0;
-                    }
+                if self.column >= VGA_WIDTH {
+                    self.new_line();
                 }
             }
         }

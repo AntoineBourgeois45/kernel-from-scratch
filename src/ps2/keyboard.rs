@@ -1,278 +1,127 @@
-use core::sync::atomic::{AtomicBool, Ordering};
-use crate::{kprint, vga::terminal::LogLevel};
+const SCANCODE_A: u8 = 0x1E;
+const SCANCODE_B: u8 = 0x30;
+const SCANCODE_C: u8 = 0x2E;
+const SCANCODE_D: u8 = 0x20;
+const SCANCODE_E: u8 = 0x12;
+const SCANCODE_F: u8 = 0x21;
+const SCANCODE_G: u8 = 0x22;
+const SCANCODE_H: u8 = 0x23;
+const SCANCODE_I: u8 = 0x17;
+const SCANCODE_J: u8 = 0x24;
+const SCANCODE_K: u8 = 0x25;
+const SCANCODE_L: u8 = 0x26;
+const SCANCODE_M: u8 = 0x32;
+const SCANCODE_N: u8 = 0x31;
+const SCANCODE_O: u8 = 0x18;
+const SCANCODE_P: u8 = 0x19;
+const SCANCODE_Q: u8 = 0x10;
+const SCANCODE_R: u8 = 0x13;
+const SCANCODE_S: u8 = 0x1F;
+const SCANCODE_T: u8 = 0x14;
+const SCANCODE_U: u8 = 0x16;
+const SCANCODE_V: u8 = 0x2F;
+const SCANCODE_W: u8 = 0x11;
+const SCANCODE_X: u8 = 0x2D;
+const SCANCODE_Y: u8 = 0x15;
+const SCANCODE_Z: u8 = 0x2C;
+const SCANCODE_0: u8 = 0x0B;
+const SCANCODE_1: u8 = 0x02;
+const SCANCODE_2: u8 = 0x03;
+const SCANCODE_3: u8 = 0x04;
+const SCANCODE_4: u8 = 0x05;
+const SCANCODE_5: u8 = 0x06;
+const SCANCODE_6: u8 = 0x07;
+const SCANCODE_7: u8 = 0x08;
+const SCANCODE_8: u8 = 0x09;
+const SCANCODE_9: u8 = 0x0A;
+const SCANCODE_BACKSPACE: u8 = 0x0E;
+const SCANCODE_TAB: u8 = 0x0F;
+const SCANCODE_ENTER: u8 = 0x1C;
+const SCANCODE_SPACE: u8 = 0x39;
+const SCANCODE_ESC: u8 = 0x01;
 
-// États des touches de modification
-static SHIFT_PRESSED: AtomicBool = AtomicBool::new(false);
-static CTRL_PRESSED: AtomicBool = AtomicBool::new(false);
-static ALT_PRESSED: AtomicBool = AtomicBool::new(false);
-static CAPS_LOCK: AtomicBool = AtomicBool::new(false);
-
-// Buffer circulaire pour stocker les entrées clavier
-const BUFFER_SIZE: usize = 256;
-static mut KEY_BUFFER: [char; BUFFER_SIZE] = ['\0'; BUFFER_SIZE];
-static mut BUFFER_HEAD: usize = 0;
-static mut BUFFER_TAIL: usize = 0;
-
-// Codes de scan des touches de modification
-const LSHIFT_PRESS: u8 = 0x2A;
-const LSHIFT_RELEASE: u8 = 0xAA;
-const RSHIFT_PRESS: u8 = 0x36;
-const RSHIFT_RELEASE: u8 = 0xB6;
-const CTRL_PRESS: u8 = 0x1D;
-const CTRL_RELEASE: u8 = 0x9D;
-const ALT_PRESS: u8 = 0x38;
-const ALT_RELEASE: u8 = 0xB8;
-const CAPS_LOCK_PRESS: u8 = 0x3A;
-const CAPS_LOCK_RELEASE: u8 = 0xBA;
-
-// Table de correspondance scancode vers caractère (QWERTY US)
-// Table normale (sans shift)
-const SCANCODE_TO_ASCII: [char; 128] = [
-    '\0', '\x1B', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\x08', '\t',
-    'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n', '\0', 'a', 's',
-    'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`', '\0', '\\', 'z', 'x', 'c', 'v',
-    'b', 'n', 'm', ',', '.', '/', '\0', '*', '\0', ' ', '\0', '\0', '\0', '\0', '\0', '\0',
-    '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
-    '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
-    '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
-    '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'
-];
-
-// Table avec shift ou caps lock
-const SHIFT_SCANCODE_TO_ASCII: [char; 128] = [
-    '\0', '\x1B', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '\x08', '\t',
-    'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', '\n', '\0', 'A', 'S',
-    'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '"', '~', '\0', '|', 'Z', 'X', 'C', 'V',
-    'B', 'N', 'M', '<', '>', '?', '\0', '*', '\0', ' ', '\0', '\0', '\0', '\0', '\0', '\0',
-    '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
-    '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
-    '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
-    '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'
-];
-
-/// Traite un scancode et le convertit en caractère
-pub fn process_scancode(scancode: u8) -> Option<char> {
-    // Vérifie si c'est un scancode de relâchement (bit 7 à 1)
-    let is_release = (scancode & 0x80) != 0;
-    let scancode = scancode & 0x7F; // Masque le bit de relâchement
-
-    // Gestion des touches de modification
-    match scancode {
-        // Shift gauche
-        sc if sc == LSHIFT_PRESS & 0x7F => {
-            SHIFT_PRESSED.store(true, Ordering::SeqCst);
-            return None;
-        }
-        sc if sc == LSHIFT_RELEASE & 0x7F => {
-            SHIFT_PRESSED.store(false, Ordering::SeqCst);
-            return None;
-        }
-        // Shift droit
-        sc if sc == RSHIFT_PRESS & 0x7F => {
-            SHIFT_PRESSED.store(true, Ordering::SeqCst);
-            return None;
-        }
-        sc if sc == RSHIFT_RELEASE & 0x7F => {
-            SHIFT_PRESSED.store(false, Ordering::SeqCst);
-            return None;
-        }
-        // Ctrl
-        sc if sc == CTRL_PRESS & 0x7F => {
-            CTRL_PRESSED.store(true, Ordering::SeqCst);
-            return None;
-        }
-        sc if sc == CTRL_RELEASE & 0x7F => {
-            CTRL_PRESSED.store(false, Ordering::SeqCst);
-            return None;
-        }
-        // Alt
-        sc if sc == ALT_PRESS & 0x7F => {
-            ALT_PRESSED.store(true, Ordering::SeqCst);
-            return None;
-        }
-        sc if sc == ALT_RELEASE & 0x7F => {
-            ALT_PRESSED.store(false, Ordering::SeqCst);
-            return None;
-        }
-        // Caps Lock (bascule à l'appui)
-        sc if sc == CAPS_LOCK_PRESS & 0x7F && !is_release => {
-            let current = CAPS_LOCK.load(Ordering::SeqCst);
-            CAPS_LOCK.store(!current, Ordering::SeqCst);
-            kprint!(LogLevel::Debug, "Caps Lock: {}\n", !current);
-            return None;
-        }
-        _ => {}
-    }
-
-    // Si c'est un relâchement de touche, ne pas générer de caractère
-    if is_release {
-        return None;
-    }
-
-    // Vérifier si le scancode est dans la plage valide
-    if scancode >= 128 {
-        return None;
-    }
-
-    // Déterminer si on doit utiliser la table shift
-    let shift_active = SHIFT_PRESSED.load(Ordering::SeqCst);
-    let caps_active = CAPS_LOCK.load(Ordering::SeqCst);
-    
-    // Appliquer caps lock uniquement aux lettres (a-z)
-    let use_shift_table = if scancode >= 0x10 && scancode <= 0x19 || 
-                             scancode >= 0x1E && scancode <= 0x26 ||
-                             scancode >= 0x2C && scancode <= 0x32 {
-        shift_active != caps_active  // XOR logique
-    } else {
-        shift_active
-    };
-
-    // Sélectionner le caractère en fonction de la table
-    let ascii_char = if use_shift_table {
-        SHIFT_SCANCODE_TO_ASCII[scancode as usize]
-    } else {
-        SCANCODE_TO_ASCII[scancode as usize]
-    };
-
-    // Appliquer les modificateurs Ctrl et Alt si nécessaire
-    if CTRL_PRESSED.load(Ordering::SeqCst) && ascii_char >= 'a' && ascii_char <= 'z' {
-        // Ctrl+lettre génère des codes ASCII de contrôle (1-26)
-        let ctrl_char = (ascii_char as u8 - b'a' + 1) as char;
-        Some(ctrl_char)
-    } else {
-        // Ignorer les caractères nuls
-        if ascii_char == '\0' {
-            None
-        } else {
-            Some(ascii_char)
-        }
-    }
+pub struct KeyboardState {
+    pub shift_pressed: bool,
+    pub ctrl_pressed: bool,
+    pub alt_pressed: bool,
 }
 
-/// Ajoute un caractère au buffer
-pub fn enqueue_key(c: char) {
-    unsafe {
-        let next_head = (BUFFER_HEAD + 1) % BUFFER_SIZE;
-        if next_head != BUFFER_TAIL {
-            KEY_BUFFER[BUFFER_HEAD] = c;
-            BUFFER_HEAD = next_head;
+impl KeyboardState {
+    pub fn new() -> Self {
+        Self {
+            shift_pressed: false,
+            ctrl_pressed: false,
+            alt_pressed: false,
         }
     }
-}
 
-/// Récupère un caractère du buffer (ou None si vide)
-pub fn dequeue_key() -> Option<char> {
-    unsafe {
-        if BUFFER_HEAD == BUFFER_TAIL {
-            return None; // Buffer vide
-        }
-        
-        let c = KEY_BUFFER[BUFFER_TAIL];
-        BUFFER_TAIL = (BUFFER_TAIL + 1) % BUFFER_SIZE;
-        Some(c)
-    }
-}
+    pub fn process_scancode(&mut self, scancode: u8) -> Option<char> {
+        let key_released = scancode & 0x80 != 0;
+        let scancode = scancode & 0x7F;
 
-/// Retourne true si le buffer contient des caractères
-pub fn has_key() -> bool {
-    unsafe {
-        BUFFER_HEAD != BUFFER_TAIL
-    }
-}
+        match scancode {
+            0x2A | 0x36 => {
+                self.shift_pressed = !key_released;
+                return None;
+            }
+            0x1D => {
+                self.ctrl_pressed = !key_released;
+                return None;
+            }
+            0x38 => {
+                self.alt_pressed = !key_released;
+                return None;
+            }
+            _ => {}
+        }
 
-/// Retourne le nombre de caractères dans le buffer
-pub fn key_count() -> usize {
-    unsafe {
-        if BUFFER_HEAD >= BUFFER_TAIL {
-            BUFFER_HEAD - BUFFER_TAIL
-        } else {
-            BUFFER_SIZE - BUFFER_TAIL + BUFFER_HEAD
+        if key_released {
+            return None;
         }
-    }
-}
 
-/// Vide le buffer
-pub fn clear_buffer() {
-    unsafe {
-        BUFFER_HEAD = 0;
-        BUFFER_TAIL = 0;
-    }
-}
-
-/// Interface principale pour la gestion du clavier
-pub fn handle_keyboard_input(scancode: u8) {
-    // Afficher le scancode pour le débogage
-    kprint!(LogLevel::Debug, "Scancode: 0x{:02x}\n", scancode);
-    
-    // Traiter le scancode
-    if let Some(c) = process_scancode(scancode) {
-        // Ajouter le caractère au buffer
-        enqueue_key(c);
-        
-        // Afficher le caractère tapé
-        kprint!(LogLevel::Info, "Key pressed: '{}' ({})\n", 
-            if c < ' ' { '?' } else { c },  // Affiche '?' pour les caractères de contrôle
-            c as u32
-        );
-    }
-}
-
-/// Lit un caractère (bloquant)
-pub fn read_char() -> char {
-    loop {
-        if let Some(c) = dequeue_key() {
-            return c;
-        }
-        // Attendre qu'une touche soit disponible
-        unsafe {
-            core::arch::asm!("hlt");
-        }
-    }
-}
-
-/// Lit une ligne de texte jusqu'à rencontrer une nouvelle ligne
-pub fn read_line(buffer: &mut [u8], max_len: usize) -> usize {
-    let mut count = 0;
-    
-    while count < max_len - 1 {
-        let c = read_char();
-        
-        // Gestion du backspace
-        if c == '\x08' && count > 0 {
-            count -= 1;
-            buffer[count] = 0;
-            // Effacer le caractère de l'écran
-            kprint!(LogLevel::Default, "\x08 \x08");
-            continue;
-        }
-        
-        // Retour à la ligne termine la saisie
-        if c == '\n' {
-            buffer[count] = b'\n';
-            count += 1;
-            kprint!(LogLevel::Default, "\n");
-            break;
-        }
-        
-        // Ignorer les caractères de contrôle
-        if c < ' ' && c != '\t' {
-            continue;
-        }
-        
-        // Ajouter le caractère au buffer et l'afficher
-        buffer[count] = c as u8;
-        count += 1;
-        
-        // Écho du caractère
-        let mut echo_buf = [0u8; 1];
-        echo_buf[0] = c as u8;
-        unsafe {
-            crate::terminal().write(&echo_buf);
+        match scancode {
+            SCANCODE_A => Some(if self.shift_pressed { 'A' } else { 'a' }),
+            SCANCODE_B => Some(if self.shift_pressed { 'B' } else { 'b' }),
+            SCANCODE_C => Some(if self.shift_pressed { 'C' } else { 'c' }),
+            SCANCODE_D => Some(if self.shift_pressed { 'D' } else { 'd' }),
+            SCANCODE_E => Some(if self.shift_pressed { 'E' } else { 'e' }),
+            SCANCODE_F => Some(if self.shift_pressed { 'F' } else { 'f' }),
+            SCANCODE_G => Some(if self.shift_pressed { 'G' } else { 'g' }),
+            SCANCODE_H => Some(if self.shift_pressed { 'H' } else { 'h' }),
+            SCANCODE_I => Some(if self.shift_pressed { 'I' } else { 'i' }),
+            SCANCODE_J => Some(if self.shift_pressed { 'J' } else { 'j' }),
+            SCANCODE_K => Some(if self.shift_pressed { 'K' } else { 'k' }),
+            SCANCODE_L => Some(if self.shift_pressed { 'L' } else { 'l' }),
+            SCANCODE_M => Some(if self.shift_pressed { 'M' } else { 'm' }),
+            SCANCODE_N => Some(if self.shift_pressed { 'N' } else { 'n' }),
+            SCANCODE_O => Some(if self.shift_pressed { 'O' } else { 'o' }),
+            SCANCODE_P => Some(if self.shift_pressed { 'P' } else { 'p' }),
+            SCANCODE_Q => Some(if self.shift_pressed { 'Q' } else { 'q' }),
+            SCANCODE_R => Some(if self.shift_pressed { 'R' } else { 'r' }),
+            SCANCODE_S => Some(if self.shift_pressed { 'S' } else { 's' }),
+            SCANCODE_T => Some(if self.shift_pressed { 'T' } else { 't' }),
+            SCANCODE_U => Some(if self.shift_pressed { 'U' } else { 'u' }),
+            SCANCODE_V => Some(if self.shift_pressed { 'V' } else { 'v' }),
+            SCANCODE_W => Some(if self.shift_pressed { 'W' } else { 'w' }),
+            SCANCODE_X => Some(if self.shift_pressed { 'X' } else { 'x' }),
+            SCANCODE_Y => Some(if self.shift_pressed { 'Y' } else { 'y' }),
+            SCANCODE_Z => Some(if self.shift_pressed { 'Z' } else { 'z' }),
+            SCANCODE_0 => Some(if self.shift_pressed { ')' } else { '0' }),
+            SCANCODE_1 => Some(if self.shift_pressed { '!' } else { '1' }),
+            SCANCODE_2 => Some(if self.shift_pressed { '@' } else { '2' }),
+            SCANCODE_3 => Some(if self.shift_pressed { '#' } else { '3' }),
+            SCANCODE_4 => Some(if self.shift_pressed { '$' } else { '4' }),
+            SCANCODE_5 => Some(if self.shift_pressed { '%' } else { '5' }),
+            SCANCODE_6 => Some(if self.shift_pressed { '^' } else { '6' }),
+            SCANCODE_7 => Some(if self.shift_pressed { '&' } else { '7' }),
+            SCANCODE_8 => Some(if self.shift_pressed { '*' } else { '8' }),
+            SCANCODE_9 => Some(if self.shift_pressed { '(' } else { '9' }),
+            SCANCODE_BACKSPACE => Some('\x08'),
+            SCANCODE_TAB => Some('\t'),
+            SCANCODE_ENTER => Some('\n'),
+            SCANCODE_SPACE => Some(' '),
+            SCANCODE_ESC => Some('\x1B'),
+            _ => None,
         }
     }
-    
-    // Ajouter le terminateur nul
-    buffer[count] = 0;
-    
-    count
 }
