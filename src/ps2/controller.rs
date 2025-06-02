@@ -39,6 +39,6 @@ impl PS2Controller {
     }
     pub fn send_data(&mut self, data: u8) {
         self.wait_input_empty();
-        unsafe { outb(PS2_COMMAND_PORT, data); };
+        unsafe { outb(PS2_DATA_PORT, data); };
     }
 }
