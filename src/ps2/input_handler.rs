@@ -107,7 +107,7 @@ impl InputHandler {
                             }
                         },
                         _ => {
-                            kprint!(LogLevel::Debug, "[{:?} pressed]", event.key);
+                            // kprint!(LogLevel::Debug, "[{:?} pressed]", event.key);
                         }
                     }
                 }

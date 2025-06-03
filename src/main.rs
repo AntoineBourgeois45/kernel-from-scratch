@@ -35,7 +35,7 @@ pub extern "C" fn kernel_main(info: *const MultibootInfo) -> ! {
    ####   ##  ##
   ## ##       ##    Rust Kernel from scratch
  ##  ##     ###
- #######   ##       Version 0.1.0
+ #######   ##       Version 0.2.0
      ##   ##  ##
      ##   ######
 
