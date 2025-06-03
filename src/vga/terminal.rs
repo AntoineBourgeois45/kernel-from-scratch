@@ -1,6 +1,6 @@
 use core::{convert::TryInto, ptr::{read_volatile, write_volatile}};
 
-use crate::interrupts::io::outb;
+use crate::interrupts::io::{inb, outb};
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -80,10 +80,6 @@ pub struct Terminal {
     pub color: u8,
     pub buffer: *mut u16,
     pub cursor_visible: bool,
-    pub scroll_offset: usize,
-    pub input_buffer: [u8; 256],
-    pub input_length: usize,
-    pub input_cursor: usize,
 }
 
 impl core::fmt::Write for Terminal {
@@ -98,10 +94,6 @@ impl Terminal {
         self.color = vga_entry_color(VgaColor::White, VgaColor::Black);
         self.buffer = 0xb8000 as *mut u16;
         self.cursor_visible = true;
-        self.scroll_offset = 0;
-        self.input_buffer = [0; 256];
-        self.input_length = 0;
-        self.input_cursor = 0;
         
         self.clear_screen();
         self.update_cursor();
@@ -116,6 +108,7 @@ impl Terminal {
         }
         self.row = 0;
         self.column = 0;
+        self.update_cursor();
     }
 
     pub fn set_color(&mut self, color: u8) {
@@ -136,14 +129,33 @@ impl Terminal {
         outb(VGA_CRTC_DATA, position as u8);
     }
 
-    
+    pub fn enable_cursor(&mut self) {
+        self.cursor_visible = true;
+        unsafe {
+            outb(VGA_CRTC_ADDR, 0x0A);
+            outb(VGA_CRTC_DATA, inb(VGA_CRTC_DATA) & 0xC0 | 0x00);
+
+            outb(VGA_CRTC_ADDR, 0x0B);
+            outb(VGA_CRTC_DATA, inb(VGA_CRTC_DATA) & 0xE0 | 15);
+
+            self.update_cursor();
+        };
+    }
+
+    pub fn disable_cursor(&mut self) {
+        self.cursor_visible = false;
+        unsafe {
+            outb(VGA_CRTC_ADDR, 0x0A);
+            outb(VGA_CRTC_ADDR, 0x20);
+        };
+    }
 
     pub unsafe fn put_entry_at(&mut self, c: u8, color: u8, x: usize, y: usize) {
         let index = y * VGA_WIDTH + x;
         write_volatile(self.buffer.add(index), vga_entry(c, color));
     }
 
-    pub unsafe fn scroll(&mut self) {
+    pub unsafe fn scroll_up(&mut self) {
         for y in 1..VGA_HEIGHT {
             for x in 0..VGA_WIDTH {
                 let from = (y * VGA_WIDTH + x) as isize;
@@ -157,26 +169,121 @@ impl Terminal {
         for x in 0..VGA_WIDTH {
             write_volatile(self.buffer.add(last_row + x), blank);
         }
-        self.row = VGA_HEIGHT - 1;
+        if self.row > 0 {
+            self.row -= 1;
+        }
+        self.update_cursor();
+    }
+
+    pub unsafe fn scroll_down(&mut self) {
+        for y in (0..VGA_HEIGHT - 1).rev() {
+            for x in 0..VGA_WIDTH {
+                let from = (y * VGA_WIDTH + x) as isize;
+                let to = ((y + 1) * VGA_WIDTH + x) as isize;
+                let val = read_volatile(self.buffer.add(from as usize));
+                write_volatile(self.buffer.add(to as usize), val);
+            }
+        }
+        let blank = vga_entry(b' ', self.color);
+        for x in 0..VGA_WIDTH {
+            write_volatile(self.buffer.add(x), blank);
+        }
+        if self.row < VGA_HEIGHT - 1 {
+            self.row += 1;
+        }
+        self.update_cursor();
     }
 
     pub unsafe fn new_line(&mut self) {
         self.column = 0;
         self.row += 1;
         if self.row >= VGA_HEIGHT {
-            self.scroll();
+            self.scroll_up();
         }
+        self.update_cursor();
+    }
+
+    pub unsafe fn move_cursor_left(&mut self) {
+        if self.column > 0 {
+            self.column -= 1;
+        } else if self.row > 0 {
+            self.row -= 1;
+            self.column = VGA_WIDTH - 1;
+        }
+        self.update_cursor();
+    }
+
+    pub unsafe fn move_cursor_right(&mut self) {
+        if self.column < VGA_WIDTH - 1 {
+            self.column += 1;
+        } else if self.row < VGA_HEIGHT - 1 {
+            self.row += 1;
+            self.column = 0;
+        }
+        self.update_cursor();
+    }
+
+    pub unsafe fn move_cursor_up(&mut self) {
+        if self.row > 0 {
+            self.row -= 1;
+            self.update_cursor();
+        } else {
+            self.scroll_down();
+        }
+    }
+
+    pub unsafe fn move_cursor_down(&mut self) {
+        if self.row < VGA_HEIGHT - 1 {
+            self.row += 1;
+            self.update_cursor();
+        } else {
+            self.scroll_up();
+            self.update_cursor();
+        }
+    }
+
+    pub unsafe fn backspace(&mut self) {
+        if self.column > 0 {
+            self.column -= 1;
+            self.put_entry_at(b' ', self.color, self.column, self.row);
+        } else if self.row > 0 {
+            self.row -= 1;
+            self.column = VGA_WIDTH - 1;
+
+            while self.column > 0 {
+                let index = self.row * VGA_WIDTH + self.column - 1;
+                let entry = read_volatile(self.buffer.add(index));
+                if (entry & 0xFF) as u8 != b' ' {
+                    break;
+                }
+                self.column -= 1;
+            }
+            self.put_entry_at(b' ', self.color, self.column, self.row);
+        }
+        self.update_cursor();
     }
 
     pub unsafe fn put_char(&mut self, c: u8) {
         match c {
             b'\n' => self.new_line(),
+            b'\r' => {
+                self.column = 0;
+                self.update_cursor();
+            }
+            b'\t' => {
+                let tab_size = 4 - (self.column % 4);
+                for _ in 0..tab_size {
+                    self.put_char(b' ');
+                }
+            }
+            b'\x08' => self.backspace(),
             byte => {
                 self.put_entry_at(byte, self.color, self.column, self.row);
                 self.column += 1;
                 if self.column >= VGA_WIDTH {
                     self.new_line();
                 }
+                self.update_cursor();
             }
         }
     }
@@ -201,6 +308,40 @@ impl Terminal {
         self.write_str("\n");
         self.set_color(old_color);
     }
+
+    pub unsafe fn move_to_line_start(&mut self) {
+        self.column = 0;
+        self.update_cursor();
+    }
+
+    pub unsafe fn move_to_line_end(&mut self) {
+        self.column = VGA_WIDTH - 1;
+        while self.column > 0 {
+            let index = self.row * VGA_WIDTH + self.column;
+            let entry = read_volatile(self.buffer.add(index));
+            if (entry & 0xFF) as u8 != b' ' {
+                self.column += 1;
+                break;
+            }
+            self.column -= 1;
+        }
+        if self.column >= VGA_WIDTH {
+            self.column = VGA_WIDTH - 1;
+        }
+        self.update_cursor();
+    }
+
+    pub unsafe fn page_up(&mut self) {
+        for _ in 0..5 {
+            self.scroll_down();
+        }
+    }
+
+    pub unsafe fn page_down(&mut self) {
+        for _ in 0..5 {
+            self.scroll_up();
+        }
+    }
 }
 
 const TERMINAL_INIT: Terminal = Terminal {
@@ -209,10 +350,6 @@ const TERMINAL_INIT: Terminal = Terminal {
     color: vga_entry_color(VgaColor::White, VgaColor::Black),
     buffer: 0xb8000 as *mut u16,
     cursor_visible: true,
-    scroll_offset: 0,
-    input_buffer: [0; 256],
-    input_length: 0,
-    input_cursor: 0,
 };
 
 static mut TERMINAL: Terminal = TERMINAL_INIT;
