@@ -30,31 +30,31 @@ static mut PS2_CONTROLLER: PS2Controller = PS2Controller {
 #[no_mangle]
 pub extern "C" fn kernel_main(info: *const MultibootInfo) -> ! {
     unsafe { terminal().initialize();
-        PS2_CONTROLLER.init_mouse();
-     }
+        // PS2_CONTROLLER.init_mouse();
+    }
 
     kprint!(LogLevel::Default, 
 "    ###    ####
    ####   ##  ##
-  ## ##       ##
+  ## ##       ##    Rust Kernel from scratch
  ##  ##     ###
- #######   ##
+ #######   ##       Version 0.1.0
      ##   ##  ##
      ##   ######
 
 ");
 
-    unsafe {
-        let mmap_length = (*info).mmap_length;
-        kprint!(LogLevel::Default, "{}", mmap_length);
-        for i in 0.. mmap_length {
-            let p = ((*info).mmap_addr + core::mem::size_of::<MultibootMmapEntry>() as u32 * i) as *const MultibootMmapEntry;
-            let size = (*p).size;
-            let len = (*p).len;
-            let addr = (*p).addr;
-            kprint!(LogLevel::Default, "size: {}, len: {}, addr: {}", size, len, addr);
-        }
-    }
+    // unsafe {
+    //     let mmap_length = (*info).mmap_length;
+    //     kprint!(LogLevel::Default, "{}", mmap_length);
+    //     for i in 0.. mmap_length {
+    //         let p = ((*info).mmap_addr + core::mem::size_of::<MultibootMmapEntry>() as u32 * i) as *const MultibootMmapEntry;
+    //         let size = (*p).size;
+    //         let len = (*p).len;
+    //         let addr = (*p).addr;
+    //         kprint!(LogLevel::Default, "size: {}, len: {}, addr: {}", size, len, addr);
+    //     }
+    // }
     loop {
         unsafe {
             if PS2_CONTROLLER.has_data() {

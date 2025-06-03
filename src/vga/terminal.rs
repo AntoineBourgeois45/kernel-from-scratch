@@ -1,4 +1,6 @@
-use core::ptr::{write_volatile, read_volatile};
+use core::{convert::TryInto, ptr::{read_volatile, write_volatile}};
+
+use crate::interrupts::io::outb;
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -67,11 +69,21 @@ pub const fn vga_entry(c: u8, color: u8) -> u16 {
 pub const VGA_WIDTH: usize = 80;
 pub const VGA_HEIGHT: usize = 25;
 
+const VGA_CRTC_ADDR: u16 = 0x3D4;
+const VGA_CRTC_DATA: u16 = 0x3D5;
+const VGA_CURSOR_LOC_HIGH: u8 = 0x0E;
+const VGA_CURSOR_LOC_LOW: u8 = 0x0F;
+
 pub struct Terminal {
     pub row: usize,
     pub column: usize,
     pub color: u8,
     pub buffer: *mut u16,
+    pub cursor_visible: bool,
+    pub scroll_offset: usize,
+    pub input_buffer: [u8; 256],
+    pub input_length: usize,
+    pub input_cursor: usize,
 }
 
 impl core::fmt::Write for Terminal {
@@ -83,21 +95,48 @@ impl core::fmt::Write for Terminal {
 
 impl Terminal {
     pub unsafe fn initialize(&mut self) {
-        self.row = 0;
-        self.column = 0;
         self.color = vga_entry_color(VgaColor::White, VgaColor::Black);
         self.buffer = 0xb8000 as *mut u16;
+        self.cursor_visible = true;
+        self.scroll_offset = 0;
+        self.input_buffer = [0; 256];
+        self.input_length = 0;
+        self.input_cursor = 0;
+        
+        self.clear_screen();
+        self.update_cursor();
+    }
+
+    pub unsafe fn clear_screen(&mut self) {
         for y in 0..VGA_HEIGHT {
             for x in 0..VGA_WIDTH {
                 let index = y * VGA_WIDTH + x;
                 write_volatile(self.buffer.add(index), vga_entry(b' ', self.color));
             }
         }
+        self.row = 0;
+        self.column = 0;
     }
 
     pub fn set_color(&mut self, color: u8) {
         self.color = color;
     }
+
+    pub unsafe fn update_cursor(&mut self) {
+        if !self.cursor_visible {
+            return;
+        }
+
+        let position: u16 = (self.row * VGA_WIDTH + self.column).try_into().unwrap();
+
+        outb(VGA_CRTC_ADDR, VGA_CURSOR_LOC_HIGH);
+        outb(VGA_CRTC_DATA, (position >> 8) as u8);
+
+        outb(VGA_CRTC_ADDR, VGA_CURSOR_LOC_LOW);
+        outb(VGA_CRTC_DATA, position as u8);
+    }
+
+    
 
     pub unsafe fn put_entry_at(&mut self, c: u8, color: u8, x: usize, y: usize) {
         let index = y * VGA_WIDTH + x;
@@ -169,6 +208,11 @@ const TERMINAL_INIT: Terminal = Terminal {
     column: 0,
     color: vga_entry_color(VgaColor::White, VgaColor::Black),
     buffer: 0xb8000 as *mut u16,
+    cursor_visible: true,
+    scroll_offset: 0,
+    input_buffer: [0; 256],
+    input_length: 0,
+    input_cursor: 0,
 };
 
 static mut TERMINAL: Terminal = TERMINAL_INIT;

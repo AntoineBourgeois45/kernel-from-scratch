@@ -2,11 +2,11 @@ use super::controller::PS2Controller;
 
 #[derive(Debug, Clone, Copy)]
 pub struct MouseEvent {
-    x_movement: i16,
-    y_movement: i16,
-    left_button: bool,
-    right_button: bool,
-    middle_button: bool,
+    pub x_movement: i16,
+    pub y_movement: i16,
+    pub left_button: bool,
+    pub right_button: bool,
+    pub middle_button: bool,
 }
 
 impl PS2Controller {
