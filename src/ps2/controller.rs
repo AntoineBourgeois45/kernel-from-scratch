@@ -1,4 +1,4 @@
-use crate::interrupts::io::{inb, outb};
+use crate::inputs::io::{inb, outb};
 
 const PS2_DATA_PORT: u16 = 0x60;
 const PS2_STATUS_PORT: u16 = 0x64;

@@ -3,8 +3,6 @@ TARGET       := kernel
 BUILD_DIR    := build
 TARGET_JSON  := i386-unknown-none.json
 BOOT_OBJ     := $(BUILD_DIR)/boot.o
-EXC_OBJ      := $(BUILD_DIR)/exceptions.o
-GDT_HELPERS_OBJ := $(BUILD_DIR)/gdt_helpers.o
 KERNEL_O     := $(BUILD_DIR)/kernel.o
 KERNEL_BIN   := $(TARGET).bin
 RUST_TOOLCHAIN := +nightly
@@ -43,23 +41,13 @@ $(BOOT_OBJ): boot/boot.asm
 	@mkdir -p $(BUILD_DIR)
 	nasm -f elf32 $< -o $@
 
-$(EXC_OBJ): src/interrupts/exceptions.asm
-	@echo "Assembling exceptions.asm → $@"
-	@mkdir -p $(BUILD_DIR)
-	nasm -f elf32 $< -o $@
-
-$(GDT_HELPERS_OBJ): src/gdt/gdt_helpers.asm
-	@echo "Assembling gdt_helpers.asm → $@"
-	@mkdir -p $(BUILD_DIR)
-	nasm -f elf32 $< -o $@
-
-$(KERNEL_BIN): $(BOOT_OBJ) ${EXC_OBJ} $(GDT_HELPERS_OBJ) src/main.rs Cargo.toml $(TARGET_JSON)
+$(KERNEL_BIN): $(BOOT_OBJ) src/main.rs Cargo.toml $(TARGET_JSON)
 	@echo "Building Rust kernel..."
 	cargo $(RUST_TOOLCHAIN) build --target $(TARGET_JSON) --release
 	@echo "Extracting .a into $(KERNEL_O)..."
 	@cp target/i386-unknown-none/release/lib$(TARGET).a $(KERNEL_O)
 	@echo "Linking -> $@ with $(LD)..."
-	$(LD) -m elf_i386 -T ${LINKER_SCRIPT} -o $@ $(BOOT_OBJ) $(KERNEL_O) ${EXC_OBJ} $(GDT_HELPERS_OBJ)
+	$(LD) -m elf_i386 -T ${LINKER_SCRIPT} -o $@ $(BOOT_OBJ) $(KERNEL_O)
 
 $(NAME): $(KERNEL_BIN)
 	@echo "Creating ISO -> $@"

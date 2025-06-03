@@ -1,6 +1,6 @@
 use core::{convert::TryInto, ptr::{read_volatile, write_volatile}};
 
-use crate::interrupts::io::{inb, outb};
+use crate::inputs::io::{inb, outb};
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

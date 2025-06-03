@@ -1,4 +1,4 @@
-use crate::interrupts::io::inb;
+use crate::inputs::io::inb;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyCode {

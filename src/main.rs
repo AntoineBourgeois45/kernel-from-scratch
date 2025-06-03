@@ -4,8 +4,7 @@
 
 pub mod vga;
 pub mod ps2;
-pub mod interrupts;
-pub mod gdt;
+pub mod inputs;
 pub mod libc;
 pub mod multiboot;
 
@@ -14,7 +13,7 @@ use ps2::keyboard::KeyboardState;
 use vga::terminal::LogLevel;
 use multiboot::MultibootInfo;
 
-use crate::{ps2::input_handler::get_input_handler, vga::terminal::terminal};
+use crate::{inputs::handlers::get_input_handler, vga::terminal::terminal};
 
 pub static mut KEYBOARD_STATE: KeyboardState = KeyboardState {
     shift_pressed: false,
