@@ -6,12 +6,10 @@ pub mod vga;
 pub mod ps2;
 pub mod inputs;
 pub mod libc;
-pub mod multiboot;
 
 use core::panic::PanicInfo;
 use ps2::keyboard::KeyboardState;
 use vga::terminal::LogLevel;
-use multiboot::MultibootInfo;
 
 use crate::{inputs::handlers::get_input_handler, vga::terminal::terminal};
 
@@ -24,7 +22,7 @@ pub static mut KEYBOARD_STATE: KeyboardState = KeyboardState {
 
 
 #[no_mangle]
-pub extern "C" fn kernel_main(info: *const MultibootInfo) -> ! {
+pub extern "C" fn kernel_main() -> ! {
     unsafe {
         terminal().initialize();
     }
@@ -34,35 +32,16 @@ pub extern "C" fn kernel_main(info: *const MultibootInfo) -> ! {
    ####   ##  ##
   ## ##       ##    Rust Kernel from scratch
  ##  ##     ###
- #######   ##       Version 0.2.0
+ #######   ##       Version 0.2.1
      ##   ##  ##
      ##   ######
 
 ");
 
-    // unsafe {
-    //     let mmap_length = (*info).mmap_length;
-    //     kprint!(LogLevel::Default, "{}", mmap_length);
-    //     for i in 0.. mmap_length {
-    //         let p = ((*info).mmap_addr + core::mem::size_of::<MultibootMmapEntry>() as u32 * i) as *const MultibootMmapEntry;
-    //         let size = (*p).size;
-    //         let len = (*p).len;
-    //         let addr = (*p).addr;
-    //         kprint!(LogLevel::Default, "size: {}, len: {}, addr: {}", size, len, addr);
-    //     }
-    // }
-
     loop {
         unsafe {
             get_input_handler().poll_and_handle_input(&mut KEYBOARD_STATE);
-            small_delay();
         }
-    }
-}
-
-unsafe fn small_delay() {
-    for _ in 0..1000 {
-        core::arch::asm!("nop");
     }
 }
 

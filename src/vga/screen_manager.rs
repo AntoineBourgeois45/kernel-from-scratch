@@ -10,4 +10,3 @@ pub struct ScreenConfig {
 	pub default_bg_color: u8,
 	pub show_welcome_message: bool,
 }
-

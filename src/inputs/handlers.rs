@@ -12,14 +12,12 @@ pub enum InputMode {
 
 pub struct InputHandler {
     pub mode: InputMode,
-    help_shown: bool,
 }
 
 impl InputHandler {
     pub const fn new() -> Self {
         Self {
             mode: InputMode::Terminal,
-            help_shown: false,
         }
     }
 
@@ -36,6 +34,25 @@ impl InputHandler {
     pub fn handle_key_event(&mut self, event: KeyEvent) {
         if !event.pressed {
             return;
+        }
+
+        match event.key {
+            KeyCode::F5 => {
+                terminal().switch_screen(0);
+                kprint!(LogLevel::Info, "Switched to first screen");
+                return;
+            },
+            KeyCode::F6 => {
+                terminal().switch_screen(1);
+                kprint!(LogLevel::Info, "Switched to second screen");
+                return;
+            },
+            KeyCode::F7 => {
+                terminal().switch_screen(2);
+                kprint!(LogLevel::Info, "Switched to third screen");
+                return;
+            },
+            _ => {}
         }
 
         match self.mode {
@@ -65,7 +82,7 @@ impl InputHandler {
                 terminal.clear_screen();
                 kprint!(LogLevel::Info, "Screen cleared");
             },
-            KeyCode::F4 => unsafe {
+            KeyCode::F4 => {
                 if terminal.cursor_visible {
                     terminal.disable_cursor();
                     kprint!(LogLevel::Info, "Cursor disabled");
@@ -91,7 +108,6 @@ impl InputHandler {
                         },
                         KeyCode::Delete => {
                             unsafe {
-                                let current_pos = terminal.row * 80 + terminal.column;
                                 if terminal.column < 79 {
                                     for x in terminal.column..79 {
                                         let next_index = terminal.row * 80 + x + 1;
@@ -129,27 +145,6 @@ impl InputHandler {
             
             KeyCode::PageUp => unsafe { terminal.page_up() },
             KeyCode::PageDown => unsafe { terminal.page_down() },
-            
-            KeyCode::ArrowLeft if event.ctrl => unsafe {
-                for _ in 0..5 {
-                    terminal.move_cursor_left();
-                }
-            },
-            KeyCode::ArrowRight if event.ctrl => unsafe {
-                for _ in 0..5 {
-                    terminal.move_cursor_right();
-                }
-            },
-            KeyCode::ArrowUp if event.ctrl => unsafe {
-                for _ in 0..3 {
-                    terminal.move_cursor_up();
-                }
-            },
-            KeyCode::ArrowDown if event.ctrl => unsafe {
-                for _ in 0..3 {
-                    terminal.move_cursor_down();
-                }
-            },
             
             KeyCode::F1 => self.show_help(),
             KeyCode::F2 => self.toggle_input_mode(),
@@ -191,46 +186,42 @@ impl InputHandler {
                 kprint!(LogLevel::Info, "^S (pause signal)");
             },
             _ => {
-                kprint!(LogLevel::Debug, "Ctrl+{:?}", event.key);
+                // kprint!(LogLevel::Debug, "Ctrl+{:?}", event.key);
             }
         }
     }
 
     fn show_help(&mut self) {
-        if !self.help_shown {
-            kprint!(LogLevel::Info, "=== KFS Keyboard Help ===");
-            kprint!(LogLevel::Info, "");
-            kprint!(LogLevel::Info, "Function Keys:");
-            kprint!(LogLevel::Info, "  F1 - Show/hide this help");
-            kprint!(LogLevel::Info, "  F2 - Toggle input mode (Terminal/Navigation)");
-            kprint!(LogLevel::Info, "  F3 - Clear screen");
-            kprint!(LogLevel::Info, "  F4 - Toggle cursor visibility");
-            kprint!(LogLevel::Info, "");
-            kprint!(LogLevel::Info, "Navigation:");
-            kprint!(LogLevel::Info, "  Arrow keys - Move cursor");
-            kprint!(LogLevel::Info, "  Ctrl+Arrows - Fast movement");
-            kprint!(LogLevel::Info, "  Home/End - Start/end of line");
-            kprint!(LogLevel::Info, "  Page Up/Down - Scroll screen");
-            kprint!(LogLevel::Info, "");
-            kprint!(LogLevel::Info, "Control Keys:");
-            kprint!(LogLevel::Info, "  Ctrl+A - Move to line start");
-            kprint!(LogLevel::Info, "  Ctrl+E - Move to line end");
-            kprint!(LogLevel::Info, "  Ctrl+L - Clear screen");
-            kprint!(LogLevel::Info, "  Ctrl+C - Interrupt signal");
-            kprint!(LogLevel::Info, "");
-            kprint!(LogLevel::Info, "Editing (Terminal mode):");
-            kprint!(LogLevel::Info, "  Backspace - Delete previous char");
-            kprint!(LogLevel::Info, "  Delete - Delete char under cursor");
-            kprint!(LogLevel::Info, "  Tab - Insert tab (4 spaces)");
-            kprint!(LogLevel::Info, "  Enter - New line");
-            kprint!(LogLevel::Info, "");
-            kprint!(LogLevel::Info, "Current mode: {:?}", self.mode);
-            kprint!(LogLevel::Info, "=========================");
-            self.help_shown = true;
-        } else {
-            kprint!(LogLevel::Info, "Help hidden");
-            self.help_shown = false;
-        }
+        kprint!(LogLevel::Info, "=== KFS Keyboard Help ===");
+        kprint!(LogLevel::Info, "");
+        kprint!(LogLevel::Info, "Function Keys:");
+        kprint!(LogLevel::Info, "  F1 - Show/hide this help");
+        kprint!(LogLevel::Info, "  F2 - Toggle input mode (Terminal/Navigation)");
+        kprint!(LogLevel::Info, "  F3 - Clear screen");
+        kprint!(LogLevel::Info, "  F4 - Toggle cursor visibility");
+        kprint!(LogLevel::Info, "  F5 - Switch to first screen");
+        kprint!(LogLevel::Info, "  F6 - Switch to second screen");
+        kprint!(LogLevel::Info, "  F7 - Switch to third screen");
+        kprint!(LogLevel::Info, "");
+        kprint!(LogLevel::Info, "Navigation:");
+        kprint!(LogLevel::Info, "  Arrow keys - Move cursor");
+        kprint!(LogLevel::Info, "  Home/End - Start/end of line");
+        kprint!(LogLevel::Info, "  Page Up/Down - Scroll screen");
+        kprint!(LogLevel::Info, "");
+        kprint!(LogLevel::Info, "Control Keys:");
+        kprint!(LogLevel::Info, "  Ctrl+A - Move to line start");
+        kprint!(LogLevel::Info, "  Ctrl+E - Move to line end");
+        kprint!(LogLevel::Info, "  Ctrl+L - Clear screen");
+        kprint!(LogLevel::Info, "  Ctrl+C - Interrupt signal");
+        kprint!(LogLevel::Info, "");
+        kprint!(LogLevel::Info, "Editing (Terminal mode):");
+        kprint!(LogLevel::Info, "  Backspace - Delete previous char");
+        kprint!(LogLevel::Info, "  Delete - Delete char under cursor");
+        kprint!(LogLevel::Info, "  Tab - Insert tab (4 spaces)");
+        kprint!(LogLevel::Info, "  Enter - New line");
+        kprint!(LogLevel::Info, "");
+        kprint!(LogLevel::Info, "Current mode: {:?}", self.mode);
+        kprint!(LogLevel::Info, "=========================");
     }
 
     fn toggle_input_mode(&mut self) {

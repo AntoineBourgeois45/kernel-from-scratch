@@ -51,7 +51,7 @@ impl LogLevel {
             LogLevel::Info => vga_entry_color(VgaColor::LightGreen, VgaColor::Black),
             LogLevel::Debug => vga_entry_color(VgaColor::LightBlue, VgaColor::Black),
             LogLevel::Trace => vga_entry_color(VgaColor::LightMagenta, VgaColor::Black),
-            LogLevel::Default => vga_entry_color(VgaColor::LightGrey, VgaColor::Black),
+            LogLevel::Default => vga_entry_color(VgaColor::White, VgaColor::Black),
         }
     }
 }
@@ -68,6 +68,9 @@ pub const fn vga_entry(c: u8, color: u8) -> u16 {
 
 pub const VGA_WIDTH: usize = 80;
 pub const VGA_HEIGHT: usize = 25;
+const VGA_BUFFER_SIZE: usize = VGA_WIDTH * VGA_HEIGHT;
+
+const SCREENS_NUMBER: usize = 3;
 
 const VGA_CRTC_ADDR: u16 = 0x3D4;
 const VGA_CRTC_DATA: u16 = 0x3D5;
@@ -80,6 +83,10 @@ pub struct Terminal {
     pub color: u8,
     pub buffer: *mut u16,
     pub cursor_visible: bool,
+
+    pub current_screen: usize,
+    pub screen_buffers: [[u16; VGA_BUFFER_SIZE]; SCREENS_NUMBER],
+    pub screen_cursors: [(usize, usize); SCREENS_NUMBER], 
 }
 
 impl core::fmt::Write for Terminal {
@@ -94,20 +101,51 @@ impl Terminal {
         self.color = vga_entry_color(VgaColor::White, VgaColor::Black);
         self.buffer = 0xb8000 as *mut u16;
         self.cursor_visible = true;
-        
-        self.clear_screen();
+
+        self.current_screen = 0;
+        self.screen_cursors = [(0, 0); SCREENS_NUMBER];
+
+        let blank = vga_entry(b' ', self.color);
+        for screen in 0..SCREENS_NUMBER {
+            for i in 0..VGA_BUFFER_SIZE {
+                self.screen_buffers[screen][i] = blank;
+            }
+        }
+        self.enable_cursor();
+        self.refresh_screen();
         self.update_cursor();
     }
 
+    pub fn switch_screen(&mut self, screen_id: usize) -> bool {
+        if screen_id >= SCREENS_NUMBER {
+            return false;
+        }
+
+        self.screen_cursors[self.current_screen] = (self.row, self.column);
+        self.current_screen = screen_id;
+        (self.row, self.column) = self.screen_cursors[self.current_screen];
+
+        unsafe {
+            self.refresh_screen();
+            self.update_cursor();
+        }
+        true
+    }
+
+    unsafe fn refresh_screen(&mut self) {
+        for (i, &entry) in self.screen_buffers[self.current_screen].iter().enumerate() {
+            write_volatile(self.buffer.add(i), entry);
+        }
+    }
+
     pub unsafe fn clear_screen(&mut self) {
-        for y in 0..VGA_HEIGHT {
-            for x in 0..VGA_WIDTH {
-                let index = y * VGA_WIDTH + x;
-                write_volatile(self.buffer.add(index), vga_entry(b' ', self.color));
-            }
+        let blank = vga_entry(b' ', self.color);
+        for entry in self.screen_buffers[self.current_screen].iter_mut() {
+            *entry = blank;
         }
         self.row = 0;
         self.column = 0;
+        self.refresh_screen();
         self.update_cursor();
     }
 
@@ -151,46 +189,59 @@ impl Terminal {
     }
 
     pub unsafe fn put_entry_at(&mut self, c: u8, color: u8, x: usize, y: usize) {
-        let index = y * VGA_WIDTH + x;
-        write_volatile(self.buffer.add(index), vga_entry(c, color));
+        if x < VGA_WIDTH && y < VGA_HEIGHT {
+            let index = y * VGA_WIDTH + x;
+            self.screen_buffers[self.current_screen][index] = vga_entry(c, color);
+        }
     }
 
     pub unsafe fn scroll_up(&mut self) {
+        let screen = &mut self.screen_buffers[self.current_screen];
+
         for y in 1..VGA_HEIGHT {
             for x in 0..VGA_WIDTH {
-                let from = (y * VGA_WIDTH + x) as isize;
-                let to = ((y - 1) * VGA_WIDTH + x) as isize;
-                let val = read_volatile(self.buffer.add(from as usize));
-                write_volatile(self.buffer.add(to as usize), val);
+                let from = y * VGA_WIDTH + x;
+                let to = (y - 1) * VGA_WIDTH + x;
+                screen[to] = screen[from];
             }
         }
+
         let blank = vga_entry(b' ', self.color);
         let last_row = (VGA_HEIGHT - 1) * VGA_WIDTH;
         for x in 0..VGA_WIDTH {
-            write_volatile(self.buffer.add(last_row + x), blank);
+            screen[last_row + x] = blank;
         }
+
         if self.row > 0 {
             self.row -= 1;
         }
+
+        self.refresh_screen();
         self.update_cursor();
     }
 
     pub unsafe fn scroll_down(&mut self) {
+        let screen = &mut self.screen_buffers[self.current_screen];
+
         for y in (0..VGA_HEIGHT - 1).rev() {
             for x in 0..VGA_WIDTH {
-                let from = (y * VGA_WIDTH + x) as isize;
-                let to = ((y + 1) * VGA_WIDTH + x) as isize;
-                let val = read_volatile(self.buffer.add(from as usize));
-                write_volatile(self.buffer.add(to as usize), val);
+                let from = y * VGA_WIDTH + x;
+                let to = (y + 1) * VGA_WIDTH + x;
+                screen[to] = screen[from];
             }
         }
+
         let blank = vga_entry(b' ', self.color);
+        let last_row = (VGA_HEIGHT - 1) * VGA_WIDTH;
         for x in 0..VGA_WIDTH {
-            write_volatile(self.buffer.add(x), blank);
+            screen[last_row + x] = blank;
         }
+
         if self.row < VGA_HEIGHT - 1 {
             self.row += 1;
         }
+
+        self.refresh_screen();
         self.update_cursor();
     }
 
@@ -286,6 +337,7 @@ impl Terminal {
                 self.update_cursor();
             }
         }
+        self.refresh_screen();
     }
 
     pub unsafe fn write(&mut self, data: &[u8]) {
@@ -350,6 +402,9 @@ const TERMINAL_INIT: Terminal = Terminal {
     color: vga_entry_color(VgaColor::White, VgaColor::Black),
     buffer: 0xb8000 as *mut u16,
     cursor_visible: true,
+    current_screen: 0,
+    screen_buffers: [[0; VGA_BUFFER_SIZE]; SCREENS_NUMBER],
+    screen_cursors: [(0, 0); SCREENS_NUMBER],
 };
 
 static mut TERMINAL: Terminal = TERMINAL_INIT;
