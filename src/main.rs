@@ -20,7 +20,6 @@ pub static mut KEYBOARD_STATE: KeyboardState = KeyboardState {
     extended_mode: false,
 };
 
-
 #[no_mangle]
 pub extern "C" fn kernel_main() -> ! {
     unsafe {

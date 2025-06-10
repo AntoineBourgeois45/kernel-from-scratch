@@ -86,7 +86,7 @@ pub struct Terminal {
 
     pub current_screen: usize,
     pub screen_buffers: [[u16; VGA_BUFFER_SIZE]; SCREENS_NUMBER],
-    pub screen_cursors: [(usize, usize); SCREENS_NUMBER], 
+    pub screen_cursors: [(usize, usize); SCREENS_NUMBER],
 }
 
 impl core::fmt::Write for Terminal {

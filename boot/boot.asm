@@ -24,7 +24,7 @@ global _start
 _start:
 	mov esp, stack_top
 
-	push ebx
+	; push ebx
 
 	call kernel_main
 
