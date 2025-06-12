@@ -9,9 +9,8 @@ pub mod libc;
 
 use core::panic::PanicInfo;
 use ps2::keyboard::KeyboardState;
-use vga::terminal::LogLevel;
 
-use crate::{inputs::handlers::get_input_handler, vga::terminal::terminal};
+use crate::{inputs::handlers::get_input_handler, vga::{display::vga_buffer::LogLevel, terminal_manager::terminal}};
 
 pub static mut KEYBOARD_STATE: KeyboardState = KeyboardState {
     shift_pressed: false,
