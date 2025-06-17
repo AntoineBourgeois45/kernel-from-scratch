@@ -116,6 +116,62 @@ impl Terminal {
         self.update_cursor();
     }
 
+    pub unsafe fn draw_idle_frame(&mut self, frame: usize) {
+        const ART: [&str; 7] = [
+            "    ###    ####",
+            "   ####   ##  ##",
+            "  ## ##       ##    Rust Kernel from scratch",
+            " ##  ##     ###",
+            " #######   ##       Version 0.2.1",
+            "     ##   ##  ##",
+            "     ##   ######",
+        ];
+        let rainbow = [
+            VgaColor::Red,
+            VgaColor::LightRed,
+            VgaColor::LightBrown,
+            VgaColor::LightGreen,
+            VgaColor::LightCyan,
+            VgaColor::LightBlue,
+            VgaColor::Magenta,
+            VgaColor::Cyan,
+        ];
+        // Centre le dessin
+        let art_h = ART.len();
+        let art_w = ART.iter().map(|l| l.len()).max().unwrap_or(0);
+        let start_row = (VGA_HEIGHT - art_h) / 2;
+        let start_col = (VGA_WIDTH  - art_w) / 2;
+
+        // On travaille sur screen_buffers[1] quel que soit current_screen
+        let buf = &mut self.screen_buffers[0];
+
+        // Efface la zone de dessin dans le buffer virtuel
+        let blank = vga_entry(b' ', vga_entry_color(VgaColor::Black, VgaColor::Black));
+        for y in start_row .. start_row + art_h {
+            for x in start_col .. start_col + art_w {
+                buf[y * VGA_WIDTH + x] = blank;
+            }
+        }
+
+        // Dessine le art en rainbow
+        for (dy, &line) in ART.iter().enumerate() {
+            for (dx, b) in line.bytes().enumerate() {
+                if b != b' ' {
+                    let color = rainbow[(dx + dy + frame) % rainbow.len()];
+                    let code  = vga_entry(b, vga_entry_color(color, VgaColor::Black));
+                    let idx = (start_row + dy) * VGA_WIDTH + (start_col + dx);
+                    buf[idx] = code;
+                }
+            }
+        }
+
+        // Si on est effectivement sur l'écran 1, on copie dans le vrai buffer
+        if self.current_screen == 0 {
+            self.refresh_screen();
+            self.update_cursor();
+        }
+    }
+
     pub fn switch_screen(&mut self, screen_id: usize) -> bool {
         if screen_id >= SCREENS_NUMBER {
             return false;

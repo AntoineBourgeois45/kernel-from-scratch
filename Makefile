@@ -69,4 +69,8 @@ clean:
 fclean: clean
 	rm -f $(NAME)
 
+docker-build:
+	docker build -t kfs-builder .
+	docker run --rm -v "$(PWD):/kernel" -w /kernel kfs-builder make re
+
 re: fclean all
