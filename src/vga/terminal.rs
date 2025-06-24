@@ -111,6 +111,16 @@ impl Terminal {
                 self.screen_buffers[screen][i] = blank;
             }
         }
+        let line = vga_entry(b'-', VgaColor::LightGrey as u8);
+        for screen in 0..SCREENS_NUMBER {
+            for i in (VGA_HEIGHT - 3) * VGA_WIDTH..(VGA_HEIGHT - 1) * VGA_WIDTH {
+                self.screen_buffers[screen][i] = line;
+            }
+            self.screen_buffers[screen][(VGA_HEIGHT - 2) * VGA_WIDTH] = vga_entry(b' ', self.color);
+            self.screen_buffers[screen][(VGA_HEIGHT - 2) * VGA_WIDTH + 1] = vga_entry(b'>', VgaColor::LightRed as u8);
+        }
+        self.column = 2;
+        self.row = VGA_HEIGHT - 2;
         self.enable_cursor();
         self.refresh_screen();
         self.update_cursor();
@@ -136,36 +146,29 @@ impl Terminal {
             VgaColor::Magenta,
             VgaColor::Cyan,
         ];
-        // Centre le dessin
         let art_h = ART.len();
         let art_w = ART.iter().map(|l| l.len()).max().unwrap_or(0);
-        let start_row = (VGA_HEIGHT - art_h) / 2;
-        let start_col = (VGA_WIDTH  - art_w) / 2;
 
-        // On travaille sur screen_buffers[1] quel que soit current_screen
         let buf = &mut self.screen_buffers[0];
 
-        // Efface la zone de dessin dans le buffer virtuel
-        let blank = vga_entry(b' ', vga_entry_color(VgaColor::Black, VgaColor::Black));
-        for y in start_row .. start_row + art_h {
-            for x in start_col .. start_col + art_w {
-                buf[y * VGA_WIDTH + x] = blank;
-            }
-        }
+        // let blank = vga_entry(b' ', vga_entry_color(VgaColor::Black, VgaColor::Black));
+        // for y in 0 .. art_h {
+        //     for x in 0 .. art_w {
+        //         buf[y * VGA_WIDTH + x] = blank;
+        //     }
+        // }
 
-        // Dessine le art en rainbow
         for (dy, &line) in ART.iter().enumerate() {
             for (dx, b) in line.bytes().enumerate() {
                 if b != b' ' {
                     let color = rainbow[(dx + dy + frame) % rainbow.len()];
                     let code  = vga_entry(b, vga_entry_color(color, VgaColor::Black));
-                    let idx = (start_row + dy) * VGA_WIDTH + (start_col + dx);
+                    let idx = dy * VGA_WIDTH + dx;
                     buf[idx] = code;
                 }
             }
         }
 
-        // Si on est effectivement sur l'écran 1, on copie dans le vrai buffer
         if self.current_screen == 0 {
             self.refresh_screen();
             self.update_cursor();
