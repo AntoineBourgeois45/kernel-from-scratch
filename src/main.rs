@@ -33,7 +33,7 @@ unsafe fn rdtsc() -> u64 {
     ((hi as u64) << 32) | (lo as u64)
 }
 
-const CPU_FREQ_HZ:   u64 = 3_000_000_000;
+const CPU_FREQ_HZ:   u64 = 5_000_000_000;
 const FRAME_RATE:    u64 = 24;
 const CYCLES_PER_FRAME: u64 = CPU_FREQ_HZ / FRAME_RATE;
 

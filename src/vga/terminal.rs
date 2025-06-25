@@ -71,6 +71,7 @@ pub const VGA_HEIGHT: usize = 25;
 const VGA_BUFFER_SIZE: usize = VGA_WIDTH * VGA_HEIGHT;
 
 const SCREENS_NUMBER: usize = 3;
+const HISTORY_LENGTH: usize = 1000;
 
 const VGA_CRTC_ADDR: u16 = 0x3D4;
 const VGA_CRTC_DATA: u16 = 0x3D5;
@@ -87,6 +88,9 @@ pub struct Terminal {
     pub current_screen: usize,
     pub screen_buffers: [[u16; VGA_BUFFER_SIZE]; SCREENS_NUMBER],
     pub screen_cursors: [(usize, usize); SCREENS_NUMBER],
+    pub screen_history: [[u16; VGA_WIDTH * HISTORY_LENGTH]; SCREENS_NUMBER],
+
+    pub scroll_level: usize,
 }
 
 impl core::fmt::Write for Terminal {
@@ -113,14 +117,14 @@ impl Terminal {
         }
         let line = vga_entry(b'-', VgaColor::LightGrey as u8);
         for screen in 0..SCREENS_NUMBER {
-            for i in (VGA_HEIGHT - 3) * VGA_WIDTH..(VGA_HEIGHT - 1) * VGA_WIDTH {
+            for i in (VGA_HEIGHT - 2) * VGA_WIDTH..(VGA_HEIGHT - 1) * VGA_WIDTH {
                 self.screen_buffers[screen][i] = line;
             }
-            self.screen_buffers[screen][(VGA_HEIGHT - 2) * VGA_WIDTH] = vga_entry(b' ', self.color);
-            self.screen_buffers[screen][(VGA_HEIGHT - 2) * VGA_WIDTH + 1] = vga_entry(b'>', VgaColor::LightRed as u8);
+            self.screen_buffers[screen][(VGA_HEIGHT - 1) * VGA_WIDTH] = vga_entry(b'-', VgaColor::LightGreen as u8);
+            self.screen_buffers[screen][(VGA_HEIGHT - 1) * VGA_WIDTH + 1] = vga_entry(b'>', VgaColor::LightGreen as u8);
         }
-        self.column = 2;
-        self.row = VGA_HEIGHT - 2;
+        self.column = 3;
+        self.row = VGA_HEIGHT - 1;
         self.enable_cursor();
         self.refresh_screen();
         self.update_cursor();
@@ -464,6 +468,8 @@ const TERMINAL_INIT: Terminal = Terminal {
     current_screen: 0,
     screen_buffers: [[0; VGA_BUFFER_SIZE]; SCREENS_NUMBER],
     screen_cursors: [(0, 0); SCREENS_NUMBER],
+    screen_history: [[0; VGA_WIDTH * HISTORY_LENGTH]; SCREENS_NUMBER],
+    scroll_level: 0,
 };
 
 static mut TERMINAL: Terminal = TERMINAL_INIT;
