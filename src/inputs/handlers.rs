@@ -214,12 +214,6 @@ impl InputHandler {
         kprint!(LogLevel::Info, "  Ctrl+L - Clear screen");
         kprint!(LogLevel::Info, "  Ctrl+C - Interrupt signal");
         kprint!(LogLevel::Info, "");
-        kprint!(LogLevel::Info, "Editing (Terminal mode):");
-        kprint!(LogLevel::Info, "  Backspace - Delete previous char");
-        kprint!(LogLevel::Info, "  Delete - Delete char under cursor");
-        kprint!(LogLevel::Info, "  Tab - Insert tab (4 spaces)");
-        kprint!(LogLevel::Info, "  Enter - New line");
-        kprint!(LogLevel::Info, "");
         kprint!(LogLevel::Info, "Current mode: {:?}", self.mode);
         kprint!(LogLevel::Info, "=========================");
     }
