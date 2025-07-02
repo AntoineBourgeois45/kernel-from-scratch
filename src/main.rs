@@ -10,7 +10,7 @@ pub mod libc;
 use core::panic::PanicInfo;
 use ps2::keyboard::KeyboardState;
 
-use crate::{inputs::handlers::get_input_handler, vga::{display::vga_buffer::LogLevel, terminal_manager::terminal}};
+use crate::{inputs::handlers::get_input_handler, vga::{display::{vga_buffer::LogLevel, idle::draw_idle_frame}, terminal_manager::terminal}};
 
 pub static mut KEYBOARD_STATE: KeyboardState = KeyboardState {
     shift_pressed: false,
@@ -48,7 +48,7 @@ pub extern "C" fn kernel_main() -> ! {
         if terminal().current_screen == 0 {
             let now = unsafe { rdtsc() };
             if now.wrapping_sub(last_tsc) >= CYCLES_PER_FRAME {
-                unsafe { terminal().draw_idle_frame(frame) };
+                unsafe { draw_idle_frame(frame) };
                 frame = frame.wrapping_add(1);
                 last_tsc = now;
             }
