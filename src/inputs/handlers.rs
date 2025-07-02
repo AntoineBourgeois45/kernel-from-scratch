@@ -1,7 +1,5 @@
 use crate::{
-    ps2::keyboard::{KeyEvent, KeyCode, keyboard_has_data, keyboard_read_scancode},
-    vga::terminal::{terminal, LogLevel},
-    kprint,
+    kprint, ps2::keyboard::{keyboard_has_data, keyboard_read_scancode, KeyCode, KeyEvent}, vga::{display::vga_buffer::LogLevel, terminal_manager::terminal}
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -107,20 +105,7 @@ impl InputHandler {
                             kprint!(LogLevel::Info, "[INSERT pressed]");
                         },
                         KeyCode::Delete => {
-                            unsafe {
-                                if terminal.column < 79 {
-                                    for x in terminal.column..79 {
-                                        let next_index = terminal.row * 80 + x + 1;
-                                        let next_char = if x == 78 { 
-                                            b' ' 
-                                        } else { 
-                                            let next_entry = core::ptr::read_volatile(terminal.buffer.add(next_index));
-                                            (next_entry & 0xFF) as u8
-                                        };
-                                        terminal.put_entry_at(next_char, terminal.color, x, terminal.row);
-                                    }
-                                }
-                            }
+                            todo!("Handle Delete key in Terminal mode");
                         },
                         _ => {
                             // kprint!(LogLevel::Debug, "[{:?} pressed]", event.key);
