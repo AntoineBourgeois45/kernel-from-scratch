@@ -2,6 +2,8 @@ use crate::{
     ps2::keyboard::{KeyEvent, KeyCode, keyboard_has_data, keyboard_read_scancode},
     vga::terminal::{terminal, LogLevel},
     kprint,
+    stack,
+    shell,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,6 +54,10 @@ impl InputHandler {
                 kprint!(LogLevel::Info, "Switched to third screen");
                 return;
             },
+            KeyCode::F8 => {
+                stack::dump_stack(32);
+                return;
+            },
             _ => {}
         }
 
@@ -96,7 +102,7 @@ impl InputHandler {
             
             _ => {
                 if let Some(ch) = event.to_char() {
-                    unsafe { terminal.put_char(ch as u8) };
+                    shell::handle_char(ch);
                 } else {
                     let event_clone = event.clone();
                     match event_clone.key {
@@ -202,6 +208,7 @@ impl InputHandler {
         kprint!(LogLevel::Info, "  F5 - Switch to first screen");
         kprint!(LogLevel::Info, "  F6 - Switch to second screen");
         kprint!(LogLevel::Info, "  F7 - Switch to third screen");
+        kprint!(LogLevel::Info, "  F8 - Dump kernel stack");
         kprint!(LogLevel::Info, "");
         kprint!(LogLevel::Info, "Navigation:");
         kprint!(LogLevel::Info, "  Arrow keys - Move cursor");
@@ -213,6 +220,9 @@ impl InputHandler {
         kprint!(LogLevel::Info, "  Ctrl+E - Move to line end");
         kprint!(LogLevel::Info, "  Ctrl+L - Clear screen");
         kprint!(LogLevel::Info, "  Ctrl+C - Interrupt signal");
+        kprint!(LogLevel::Info, "");
+        kprint!(LogLevel::Info, "Shell Commands:");
+        kprint!(LogLevel::Info, "  help | stack | clear | reboot | halt");
         kprint!(LogLevel::Info, "");
         kprint!(LogLevel::Info, "Current mode: {:?}", self.mode);
         kprint!(LogLevel::Info, "=========================");

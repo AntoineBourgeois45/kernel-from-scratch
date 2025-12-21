@@ -6,6 +6,9 @@ pub mod vga;
 pub mod ps2;
 pub mod inputs;
 pub mod libc;
+pub mod gdt;
+pub mod stack;
+pub mod shell;
 
 use core::panic::PanicInfo;
 use ps2::keyboard::KeyboardState;
@@ -23,6 +26,7 @@ pub static mut KEYBOARD_STATE: KeyboardState = KeyboardState {
 #[no_mangle]
 pub extern "C" fn kernel_main() -> ! {
     unsafe {
+        gdt::init();
         terminal().initialize();
     }
 
@@ -33,9 +37,10 @@ pub extern "C" fn kernel_main() -> ! {
  ##  ##     ###
  #######   ##       Version 0.2.1
      ##   ##  ##
-     ##   ######
+    ##   ######
 
 ");
+    shell::init();
 
     loop {
         unsafe {
