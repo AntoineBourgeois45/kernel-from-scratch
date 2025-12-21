@@ -18,6 +18,7 @@ endif
 UNAME := $(shell uname)
 ifeq ($(findstring Darwin,$(UNAME)),Darwin)
 	LINKER_SCRIPT := boot/linker_macos.ls
+	SIZE_CMD := stat -f%z
   ifneq ($(shell command -v i386-elf-ld 2>/dev/null),)
     LD := i386-elf-ld
   else ifneq ($(shell command -v ld.lld 2>/dev/null),)
@@ -30,7 +31,9 @@ ifeq ($(findstring Darwin,$(UNAME)),Darwin)
 else
   LD := ld
   LINKER_SCRIPT := boot/linker.ls
+  SIZE_CMD := stat -c%s
 endif
+SIZE_LIMIT := 10485760
 
 .PHONY: all clean run
 
@@ -48,6 +51,12 @@ $(KERNEL_BIN): $(BOOT_OBJ) src/main.rs Cargo.toml $(TARGET_JSON)
 	@cp target/i386-unknown-none/release/lib$(TARGET).a $(KERNEL_O)
 	@echo "Linking -> $@ with $(LD)..."
 	$(LD) -m elf_i386 -T ${LINKER_SCRIPT} -o $@ $(BOOT_OBJ) $(KERNEL_O)
+	@size=$$($(SIZE_CMD) $(KERNEL_BIN)); \
+		echo "$(KERNEL_BIN) size: $$size bytes"; \
+		if [ $$size -gt $(SIZE_LIMIT) ]; then \
+			echo "Error: $(KERNEL_BIN) exceeds 10MB ($$size bytes)"; \
+			exit 1; \
+		fi
 
 $(NAME): $(KERNEL_BIN)
 	@echo "Creating ISO -> $@"
@@ -56,6 +65,12 @@ $(NAME): $(KERNEL_BIN)
 	@cp $(KERNEL_BIN) isodir/boot/$(KERNEL_BIN)
 	@cp boot/grub.cfg isodir/boot/grub/
 	@$(GRUB_MKRESCUE) -o $@ isodir
+	@size=$$($(SIZE_CMD) $(NAME)); \
+		echo "$(NAME) size: $$size bytes"; \
+		if [ $$size -gt $(SIZE_LIMIT) ]; then \
+			echo "Error: $(NAME) exceeds 10MB ($$size bytes)"; \
+			exit 1; \
+		fi
 
 run: all
 	@echo "Launching QEMU -> $(NAME)"
