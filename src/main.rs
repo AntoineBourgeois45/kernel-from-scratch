@@ -9,6 +9,8 @@ pub mod libc;
 pub mod gdt;
 pub mod stack;
 pub mod shell;
+pub mod memory;
+pub mod kpanic;
 
 use core::panic::PanicInfo;
 use ps2::keyboard::KeyboardState;
@@ -28,6 +30,10 @@ pub extern "C" fn kernel_main() -> ! {
     unsafe {
         gdt::init();
         terminal().initialize();
+        memory::init();
+        if !memory::memtest() {
+            kpanic::warn("memory self-test failed");
+        }
     }
 
     kprint!(LogLevel::Default, 
@@ -51,5 +57,5 @@ pub extern "C" fn kernel_main() -> ! {
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    loop {}
+    kpanic::fatal("panic");
 }

@@ -222,7 +222,8 @@ impl InputHandler {
         kprint!(LogLevel::Info, "  Ctrl+C - Interrupt signal");
         kprint!(LogLevel::Info, "");
         kprint!(LogLevel::Info, "Shell Commands:");
-        kprint!(LogLevel::Info, "  help | stack | clear | reboot | halt");
+        kprint!(LogLevel::Info, "  help | stack | memtest | meminfo | memdemo | memdump | map | pmem");
+        kprint!(LogLevel::Info, "  clear | reboot | halt");
         kprint!(LogLevel::Info, "");
         kprint!(LogLevel::Info, "Current mode: {:?}", self.mode);
         kprint!(LogLevel::Info, "=========================");

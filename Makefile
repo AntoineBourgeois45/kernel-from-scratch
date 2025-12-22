@@ -59,7 +59,7 @@ $(NAME): $(KERNEL_BIN)
 
 run: all
 	@echo "Launching QEMU -> $(NAME)"
-	qemu-system-i386 -cdrom $(NAME)
+	qemu-system-i386 -cdrom $(NAME) -boot d
 
 clean:
 	@echo "Cleaning build artifacts"
