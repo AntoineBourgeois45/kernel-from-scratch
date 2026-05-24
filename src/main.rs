@@ -23,24 +23,6 @@ pub static mut KEYBOARD_STATE: KeyboardState = KeyboardState {
     extended_mode: false,
 };
 
-#[inline(always)]
-unsafe fn rdtsc() -> u64 {
-    let hi: u32;
-    let lo: u32;
-    core::arch::asm!(
-        "rdtsc",
-        out("edx") hi,
-        out("eax") lo,
-        options(nomem, nostack, preserves_flags)
-    );
-    ((hi as u64) << 32) | (lo as u64)
-}
-
-const CPU_FREQ_HZ:   u64 = 5_000_000_000;
-const FRAME_RATE:    u64 = 24;
-const CYCLES_PER_FRAME: u64 = CPU_FREQ_HZ / FRAME_RATE;
-
-
 #[no_mangle]
 pub extern "C" fn kernel_main() -> ! {
     unsafe {
@@ -48,7 +30,7 @@ pub extern "C" fn kernel_main() -> ! {
         terminal().initialize();
     }
 
-    kprint!(LogLevel::Default,
+    kprint!(LogLevel::Default, 
 "    ###    ####
    ####   ##  ##
   ## ##       ##    Rust Kernel from scratch
@@ -60,22 +42,10 @@ pub extern "C" fn kernel_main() -> ! {
 ");
     shell::init();
 
-    let mut frame    = 0usize;
-    let mut last_tsc = unsafe { rdtsc() };
-
     loop {
-        if terminal().current_screen == 0 && shell::rainbow_active() {
-            let now = unsafe { rdtsc() };
-            if now.wrapping_sub(last_tsc) >= CYCLES_PER_FRAME {
-                unsafe { terminal().draw_idle_frame(frame) };
-                frame = frame.wrapping_add(1);
-                last_tsc = now;
-            }
-        }
-
         unsafe {
-            get_input_handler().poll_and_handle_input(&mut KEYBOARD_STATE)
-        };
+            get_input_handler().poll_and_handle_input(&mut KEYBOARD_STATE);
+        }
     }
 }
 

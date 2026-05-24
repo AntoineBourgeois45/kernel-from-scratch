@@ -65,7 +65,6 @@ impl Shell {
             "help" => self.print_help(),
             "stack" => stack::dump_stack(32),
             "clear" => unsafe { terminal().clear_screen() },
-            "rainbow" => toggle_rainbow(),
             "halt" => halt(),
             "reboot" => reboot(),
             _ => kprint!(LogLevel::Warning, "Unknown command: {}", cmd),
@@ -74,17 +73,15 @@ impl Shell {
 
     fn print_help(&self) {
         kprint!(LogLevel::Info, "=== KFS Shell ===");
-        kprint!(LogLevel::Info, "help    - show this help");
-        kprint!(LogLevel::Info, "stack   - dump kernel stack");
-        kprint!(LogLevel::Info, "clear   - clear screen");
-        kprint!(LogLevel::Info, "rainbow - toggle the rainbow 42 animation on screen 0");
-        kprint!(LogLevel::Info, "reboot  - reboot via PS/2 controller");
-        kprint!(LogLevel::Info, "halt    - halt CPU");
+        kprint!(LogLevel::Info, "help   - show this help");
+        kprint!(LogLevel::Info, "stack  - dump kernel stack");
+        kprint!(LogLevel::Info, "clear  - clear screen");
+        kprint!(LogLevel::Info, "reboot - reboot via PS/2 controller");
+        kprint!(LogLevel::Info, "halt   - halt CPU");
     }
 }
 
 static mut SHELL: Shell = Shell::new();
-static mut RAINBOW_ACTIVE: bool = false;
 
 pub fn init() {
     unsafe {
@@ -95,21 +92,6 @@ pub fn init() {
 pub fn handle_char(ch: char) {
     unsafe {
         SHELL.handle_char(ch);
-    }
-}
-
-pub fn rainbow_active() -> bool {
-    unsafe { RAINBOW_ACTIVE }
-}
-
-fn toggle_rainbow() {
-    unsafe {
-        RAINBOW_ACTIVE = !RAINBOW_ACTIVE;
-        if RAINBOW_ACTIVE {
-            kprint!(LogLevel::Info, "Rainbow 42 started (switch back to screen 0 to see it)");
-        } else {
-            kprint!(LogLevel::Info, "Rainbow 42 stopped");
-        }
     }
 }
 
