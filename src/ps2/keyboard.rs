@@ -254,10 +254,3 @@ pub fn keyboard_has_data() -> bool {
 pub fn keyboard_read_scancode() -> u8 {
     unsafe { inb(PS2_DATA_PORT) }
 }
-
-pub fn wait_for_keyboard_data() -> u8 {
-    while !keyboard_has_data() {
-
-    }
-    keyboard_read_scancode()
-}
