@@ -37,7 +37,7 @@ pub extern "C" fn kernel_main() -> ! {
  ##  ##     ###
  #######   ##       Version 0.2.1
      ##   ##  ##
-    ##   ######
+     ##   ######
 
 ");
     shell::init();
