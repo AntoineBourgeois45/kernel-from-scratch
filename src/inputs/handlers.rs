@@ -69,12 +69,12 @@ impl InputHandler {
 
     fn handle_terminal_input(&mut self, event: KeyEvent) {
         let terminal = terminal();
-        
+
         match event.key {
-            KeyCode::ArrowLeft => unsafe { terminal.move_cursor_left() },
-            KeyCode::ArrowRight => unsafe { terminal.move_cursor_right() },
-            KeyCode::ArrowUp => unsafe { terminal.move_cursor_up() },
-            KeyCode::ArrowDown => unsafe { terminal.move_cursor_down() },
+            KeyCode::ArrowLeft => {},
+            KeyCode::ArrowRight => {},
+            KeyCode::ArrowUp => unsafe { terminal.view_scroll_up(1) },
+            KeyCode::ArrowDown => unsafe { terminal.view_scroll_down(1) },
             
             KeyCode::Home => unsafe { terminal.move_to_line_start() },
             KeyCode::End => unsafe { terminal.move_to_line_end() },

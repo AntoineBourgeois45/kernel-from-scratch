@@ -72,6 +72,9 @@ const VGA_BUFFER_SIZE: usize = VGA_WIDTH * VGA_HEIGHT;
 
 const SCREENS_NUMBER: usize = 3;
 
+const SCROLLBACK_LINES: usize = 100;
+const SCROLLBACK_SIZE: usize = VGA_WIDTH * SCROLLBACK_LINES;
+
 const VGA_CRTC_ADDR: u16 = 0x3D4;
 const VGA_CRTC_DATA: u16 = 0x3D5;
 const VGA_CURSOR_LOC_HIGH: u8 = 0x0E;
@@ -87,6 +90,11 @@ pub struct Terminal {
     pub current_screen: usize,
     pub screen_buffers: [[u16; VGA_BUFFER_SIZE]; SCREENS_NUMBER],
     pub screen_cursors: [(usize, usize); SCREENS_NUMBER],
+
+    pub scrollback: [[u16; SCROLLBACK_SIZE]; SCREENS_NUMBER],
+    pub scrollback_head: [usize; SCREENS_NUMBER],
+    pub scrollback_count: [usize; SCREENS_NUMBER],
+    pub view_offset: [usize; SCREENS_NUMBER],
 }
 
 impl core::fmt::Write for Terminal {
@@ -111,6 +119,11 @@ impl Terminal {
                 self.screen_buffers[screen][i] = blank;
             }
         }
+
+        self.scrollback_head = [0; SCREENS_NUMBER];
+        self.scrollback_count = [0; SCREENS_NUMBER];
+        self.view_offset = [0; SCREENS_NUMBER];
+
         self.enable_cursor();
         self.refresh_screen();
         self.update_cursor();
@@ -133,18 +146,58 @@ impl Terminal {
     }
 
     unsafe fn refresh_screen(&mut self) {
-        for (i, &entry) in self.screen_buffers[self.current_screen].iter().enumerate() {
-            write_volatile(self.buffer.add(i), entry);
+        let s = self.current_screen;
+        let offset = self.view_offset[s];
+
+        if offset == 0 {
+            for (i, &entry) in self.screen_buffers[s].iter().enumerate() {
+                write_volatile(self.buffer.add(i), entry);
+            }
+            return;
+        }
+
+        let head = self.scrollback_head[s];
+        let count = self.scrollback_count[s];
+        let blank = vga_entry(b' ', self.color);
+
+        for y in 0..VGA_HEIGHT {
+            let vline = y as isize - offset as isize;
+            if vline < 0 {
+                let back = (-vline - 1) as usize;
+                if back < count {
+                    let ring_idx = (head + SCROLLBACK_LINES - 1 - back) % SCROLLBACK_LINES;
+                    for x in 0..VGA_WIDTH {
+                        write_volatile(
+                            self.buffer.add(y * VGA_WIDTH + x),
+                            self.scrollback[s][ring_idx * VGA_WIDTH + x],
+                        );
+                    }
+                } else {
+                    for x in 0..VGA_WIDTH {
+                        write_volatile(self.buffer.add(y * VGA_WIDTH + x), blank);
+                    }
+                }
+            } else {
+                let live_row = vline as usize;
+                for x in 0..VGA_WIDTH {
+                    write_volatile(
+                        self.buffer.add(y * VGA_WIDTH + x),
+                        self.screen_buffers[s][live_row * VGA_WIDTH + x],
+                    );
+                }
+            }
         }
     }
 
     pub unsafe fn clear_screen(&mut self) {
+        let s = self.current_screen;
         let blank = vga_entry(b' ', self.color);
-        for entry in self.screen_buffers[self.current_screen].iter_mut() {
+        for entry in self.screen_buffers[s].iter_mut() {
             *entry = blank;
         }
         self.row = 0;
         self.column = 0;
+        self.view_offset[s] = 0;
         self.refresh_screen();
         self.update_cursor();
     }
@@ -154,7 +207,14 @@ impl Terminal {
     }
 
     pub unsafe fn update_cursor(&mut self) {
-        if !self.cursor_visible {
+        let in_scrollback = self.view_offset[self.current_screen] != 0;
+
+        if !self.cursor_visible || in_scrollback {
+            let position: u16 = (VGA_WIDTH * VGA_HEIGHT) as u16;
+            outb(VGA_CRTC_ADDR, VGA_CURSOR_LOC_HIGH);
+            outb(VGA_CRTC_DATA, (position >> 8) as u8);
+            outb(VGA_CRTC_ADDR, VGA_CURSOR_LOC_LOW);
+            outb(VGA_CRTC_DATA, position as u8);
             return;
         }
 
@@ -196,8 +256,18 @@ impl Terminal {
     }
 
     pub unsafe fn scroll_up(&mut self) {
-        let screen = &mut self.screen_buffers[self.current_screen];
+        let s = self.current_screen;
 
+        let head = self.scrollback_head[s];
+        for x in 0..VGA_WIDTH {
+            self.scrollback[s][head * VGA_WIDTH + x] = self.screen_buffers[s][x];
+        }
+        self.scrollback_head[s] = (head + 1) % SCROLLBACK_LINES;
+        if self.scrollback_count[s] < SCROLLBACK_LINES {
+            self.scrollback_count[s] += 1;
+        }
+
+        let screen = &mut self.screen_buffers[s];
         for y in 1..VGA_HEIGHT {
             for x in 0..VGA_WIDTH {
                 let from = y * VGA_WIDTH + x;
@@ -220,27 +290,25 @@ impl Terminal {
         self.update_cursor();
     }
 
-    pub unsafe fn scroll_down(&mut self) {
-        let screen = &mut self.screen_buffers[self.current_screen];
-
-        for y in (0..VGA_HEIGHT - 1).rev() {
-            for x in 0..VGA_WIDTH {
-                let from = y * VGA_WIDTH + x;
-                let to = (y + 1) * VGA_WIDTH + x;
-                screen[to] = screen[from];
-            }
+    pub unsafe fn view_scroll_up(&mut self, n: usize) {
+        let s = self.current_screen;
+        let max = self.scrollback_count[s];
+        let new_offset = (self.view_offset[s] + n).min(max);
+        if new_offset == self.view_offset[s] {
+            return;
         }
+        self.view_offset[s] = new_offset;
+        self.refresh_screen();
+        self.update_cursor();
+    }
 
-        let blank = vga_entry(b' ', self.color);
-        let last_row = (VGA_HEIGHT - 1) * VGA_WIDTH;
-        for x in 0..VGA_WIDTH {
-            screen[last_row + x] = blank;
+    pub unsafe fn view_scroll_down(&mut self, n: usize) {
+        let s = self.current_screen;
+        let new_offset = self.view_offset[s].saturating_sub(n);
+        if new_offset == self.view_offset[s] {
+            return;
         }
-
-        if self.row < VGA_HEIGHT - 1 {
-            self.row += 1;
-        }
-
+        self.view_offset[s] = new_offset;
         self.refresh_screen();
         self.update_cursor();
     }
@@ -275,20 +343,19 @@ impl Terminal {
     }
 
     pub unsafe fn move_cursor_up(&mut self) {
-        if self.row > 0 {
+        if self.view_offset[self.current_screen] != 0 || self.row == 0 {
+            self.view_scroll_up(1);
+        } else {
             self.row -= 1;
             self.update_cursor();
-        } else {
-            self.scroll_down();
         }
     }
 
     pub unsafe fn move_cursor_down(&mut self) {
-        if self.row < VGA_HEIGHT - 1 {
+        if self.view_offset[self.current_screen] != 0 {
+            self.view_scroll_down(1);
+        } else if self.row < VGA_HEIGHT - 1 {
             self.row += 1;
-            self.update_cursor();
-        } else {
-            self.scroll_up();
             self.update_cursor();
         }
     }
@@ -315,6 +382,7 @@ impl Terminal {
     }
 
     pub unsafe fn put_char(&mut self, c: u8) {
+        self.view_offset[self.current_screen] = 0;
         match c {
             b'\n' => self.new_line(),
             b'\r' => {
@@ -384,15 +452,11 @@ impl Terminal {
     }
 
     pub unsafe fn page_up(&mut self) {
-        for _ in 0..5 {
-            self.scroll_down();
-        }
+        self.view_scroll_up(VGA_HEIGHT - 1);
     }
 
     pub unsafe fn page_down(&mut self) {
-        for _ in 0..5 {
-            self.scroll_up();
-        }
+        self.view_scroll_down(VGA_HEIGHT - 1);
     }
 }
 
@@ -405,6 +469,10 @@ const TERMINAL_INIT: Terminal = Terminal {
     current_screen: 0,
     screen_buffers: [[0; VGA_BUFFER_SIZE]; SCREENS_NUMBER],
     screen_cursors: [(0, 0); SCREENS_NUMBER],
+    scrollback: [[0; SCROLLBACK_SIZE]; SCREENS_NUMBER],
+    scrollback_head: [0; SCREENS_NUMBER],
+    scrollback_count: [0; SCREENS_NUMBER],
+    view_offset: [0; SCREENS_NUMBER],
 };
 
 static mut TERMINAL: Terminal = TERMINAL_INIT;

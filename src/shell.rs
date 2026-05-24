@@ -21,7 +21,7 @@ impl Shell {
     }
 
     pub fn prompt(&self) {
-        kprint!(LogLevel::Default, "> ");
+        unsafe { terminal().write_str("> ") };
     }
 
     pub fn handle_char(&mut self, ch: char) {

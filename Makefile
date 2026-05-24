@@ -46,7 +46,7 @@ $(BOOT_OBJ): boot/boot.asm
 
 $(KERNEL_BIN): $(BOOT_OBJ) src/main.rs Cargo.toml $(TARGET_JSON)
 	@echo "Building Rust kernel..."
-	cargo $(RUST_TOOLCHAIN) build --target $(TARGET_JSON) --release
+	cargo $(RUST_TOOLCHAIN) build -Z json-target-spec --target $(TARGET_JSON) --release
 	@echo "Extracting .a into $(KERNEL_O)..."
 	@cp target/i386-unknown-none/release/lib$(TARGET).a $(KERNEL_O)
 	@echo "Linking -> $@ with $(LD)..."
