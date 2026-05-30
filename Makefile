@@ -12,7 +12,9 @@ ifneq ($(shell command -v grub-mkrescue 2>/dev/null),)
 else ifneq ($(shell command -v i686-elf-grub-mkrescue 2>/dev/null),)
   GRUB_MKRESCUE := i686-elf-grub-mkrescue
 else
-  $(error "grub-mkrescue not found : install 'grub' or 'i686-elf-grub' using Homebrew")
+  # Not found on the host: only an error for native ISO builds. Container
+  # builds run grub-mkrescue inside the image, so the host doesn't need it.
+  GRUB_MKRESCUE = $(error grub-mkrescue not found : install 'grub'/'grub2-tools' (or 'i686-elf-grub' via Homebrew), or build inside the container with 'make container-build')
 endif
 
 UNAME := $(shell uname)
@@ -26,7 +28,9 @@ ifeq ($(findstring Darwin,$(UNAME)),Darwin)
   else ifneq ($(shell command -v lld 2>/dev/null),)
     LD := lld
   else
-    $(error No ELF linker found : install “i386-elf-binutils” or “llvm” (brew install llvm) and add it to your PATH)
+    # Deferred: only an error for native builds. Container builds use the
+    # linker inside the image, so the host doesn't need one.
+    LD = $(error No ELF linker found : install “i386-elf-binutils” or “llvm” (brew install llvm), or build inside the container with 'make container-build')
   endif
 else
   LD := ld
@@ -35,7 +39,7 @@ else
 endif
 SIZE_LIMIT := 10485760
 
-.PHONY: all clean run
+.PHONY: all clean run container-build podman-build docker-build re fclean
 
 all: $(NAME)
 
@@ -84,8 +88,17 @@ clean:
 fclean: clean
 	rm -f $(NAME)
 
-docker-build:
-	docker build --platform=linux/amd64 -t kfs-builder .
-	docker run --rm -v "$(PWD):/kernel" -w /kernel kfs-builder make re
+CONTAINER ?= podman
+
+container-build:
+	$(CONTAINER) build --platform=linux/amd64 -t kfs-builder .
+	$(CONTAINER) run --rm -v "$(PWD):/kernel:z" -w /kernel kfs-builder make re
+
+# Backward-compatible aliases
+podman-build: CONTAINER := podman
+podman-build: container-build
+
+docker-build: CONTAINER := docker
+docker-build: container-build
 
 re: fclean all
