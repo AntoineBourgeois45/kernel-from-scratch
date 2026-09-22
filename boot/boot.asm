@@ -12,6 +12,8 @@ align 4
 
 section .bss
 align 16
+global stack_bottom
+global stack_top
 stack_bottom:
     resb 16384
 stack_top:
@@ -32,3 +34,5 @@ _start:
 .loop:
 	hlt
 	jmp .loop
+
+section .note.GNU-stack noalloc noexec nowrite progbits

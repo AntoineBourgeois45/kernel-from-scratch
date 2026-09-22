@@ -2,19 +2,23 @@ NAME         := kernel.iso
 TARGET       := kernel
 BUILD_DIR    := build
 TARGET_JSON  := i386-unknown-none.json
+RUST_SOURCES := $(shell find src -type f -name '*.rs')
 BOOT_OBJ     := $(BUILD_DIR)/boot.o
+INTERRUPTS_OBJ := $(BUILD_DIR)/interrupts.o
 KERNEL_O     := $(BUILD_DIR)/kernel.o
 KERNEL_BIN   := $(TARGET).bin
 RUST_TOOLCHAIN := +nightly
 
 ifneq ($(shell command -v grub-mkrescue 2>/dev/null),)
   GRUB_MKRESCUE := grub-mkrescue
+else ifneq ($(shell command -v grub2-mkrescue 2>/dev/null),)
+  GRUB_MKRESCUE := grub2-mkrescue
 else ifneq ($(shell command -v i686-elf-grub-mkrescue 2>/dev/null),)
   GRUB_MKRESCUE := i686-elf-grub-mkrescue
 else
   # Not found on the host: only an error for native ISO builds. Container
   # builds run grub-mkrescue inside the image, so the host doesn't need it.
-  GRUB_MKRESCUE = $(error grub-mkrescue not found : install 'grub'/'grub2-tools' (or 'i686-elf-grub' via Homebrew), or build inside the container with 'make container-build')
+  GRUB_MKRESCUE = $(error grub-mkrescue not found : install 'grub2-tools-extra' on Fedora, 'grub' on Debian/Arch, or build inside the container with 'make container-build')
 endif
 
 UNAME := $(shell uname)
@@ -48,13 +52,18 @@ $(BOOT_OBJ): boot/boot.asm
 	@mkdir -p $(BUILD_DIR)
 	nasm -f elf32 $< -o $@
 
-$(KERNEL_BIN): $(BOOT_OBJ) src/main.rs Cargo.toml $(TARGET_JSON)
+$(INTERRUPTS_OBJ): boot/interrupts.asm
+	@echo "Compiling interrupts.asm -> $@"
+	@mkdir -p $(BUILD_DIR)
+	nasm -f elf32 $< -o $@
+
+$(KERNEL_BIN): $(BOOT_OBJ) $(INTERRUPTS_OBJ) $(RUST_SOURCES) Cargo.toml $(TARGET_JSON)
 	@echo "Building Rust kernel..."
-	cargo $(RUST_TOOLCHAIN) build -Z json-target-spec --target $(TARGET_JSON) --release
+	cargo $(RUST_TOOLCHAIN) build --target $(TARGET_JSON) --release
 	@echo "Extracting .a into $(KERNEL_O)..."
 	@cp target/i386-unknown-none/release/lib$(TARGET).a $(KERNEL_O)
 	@echo "Linking -> $@ with $(LD)..."
-	$(LD) -m elf_i386 -T ${LINKER_SCRIPT} -o $@ $(BOOT_OBJ) $(KERNEL_O)
+	$(LD) -m elf_i386 -T ${LINKER_SCRIPT} -o $@ $(BOOT_OBJ) $(INTERRUPTS_OBJ) $(KERNEL_O)
 	@size=$$($(SIZE_CMD) $(KERNEL_BIN)); \
 		echo "$(KERNEL_BIN) size: $$size bytes"; \
 		if [ $$size -gt $(SIZE_LIMIT) ]; then \

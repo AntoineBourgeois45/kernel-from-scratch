@@ -244,8 +244,19 @@ impl Terminal {
         self.cursor_visible = false;
         unsafe {
             outb(VGA_CRTC_ADDR, 0x0A);
-            outb(VGA_CRTC_ADDR, 0x20);
+            outb(VGA_CRTC_DATA, inb(VGA_CRTC_DATA) | 0x20);
         };
+    }
+
+    pub unsafe fn delete_at_cursor(&mut self) {
+        let s = self.current_screen;
+        let row_start = self.row * VGA_WIDTH;
+        for x in self.column..VGA_WIDTH - 1 {
+            self.screen_buffers[s][row_start + x] = self.screen_buffers[s][row_start + x + 1];
+        }
+        self.screen_buffers[s][row_start + VGA_WIDTH - 1] = vga_entry(b' ', self.color);
+        self.refresh_screen();
+        self.update_cursor();
     }
 
     pub unsafe fn put_entry_at(&mut self, c: u8, color: u8, x: usize, y: usize) {
@@ -478,7 +489,7 @@ const TERMINAL_INIT: Terminal = Terminal {
 static mut TERMINAL: Terminal = TERMINAL_INIT;
 
 pub fn terminal() -> &'static mut Terminal {
-    unsafe { &mut TERMINAL }
+    unsafe { &mut *core::ptr::addr_of_mut!(TERMINAL) }
 }
 
 #[macro_export]
@@ -489,18 +500,14 @@ macro_rules! kprint {
     ($level:expr, $fmt:expr, $($arg:tt)+) => {
         {
             let term = $crate::terminal();
+            let old_color = term.color;
             if let Some(prefix) = $level.prefix() {
                 term.set_color($level.color());
                 unsafe { term.write_str(prefix) };
             }
             let _ = core::fmt::Write::write_fmt(term, format_args!($fmt, $($arg)+));
             unsafe { term.write_str("\n") };
-            term.set_color(
-                $crate::vga::terminal::vga_entry_color(
-                    $crate::vga::terminal::VgaColor::LightGrey,
-                    $crate::vga::terminal::VgaColor::Black,
-                )
-            );
+            term.set_color(old_color);
         }
     };
 }
