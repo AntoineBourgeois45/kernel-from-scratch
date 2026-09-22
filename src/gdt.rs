@@ -96,3 +96,15 @@ pub const fn kernel_stack_selector() -> u16 {
 pub const fn kernel_data_selector() -> u16 {
     KERNEL_DATA_SELECTOR
 }
+
+pub const fn user_code_selector() -> u16 {
+    USER_CODE_SELECTOR
+}
+
+pub const fn user_data_selector() -> u16 {
+    USER_DATA_SELECTOR
+}
+
+pub const fn user_stack_selector() -> u16 {
+    USER_STACK_SELECTOR
+}

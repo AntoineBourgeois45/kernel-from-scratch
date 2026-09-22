@@ -1,6 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(abi_x86_interrupt)]
+#![allow(unused_unsafe)]
 
 pub mod vga;
 pub mod ps2;
@@ -9,12 +9,18 @@ pub mod libc;
 pub mod gdt;
 pub mod stack;
 pub mod shell;
+pub mod cpu;
+pub mod pic;
+pub mod pit;
+pub mod signals;
+pub mod interrupts;
+pub mod kpanic;
 
 use core::panic::PanicInfo;
 use ps2::keyboard::KeyboardState;
 use vga::terminal::LogLevel;
 
-use crate::{inputs::handlers::get_input_handler, vga::terminal::terminal};
+use crate::vga::terminal::terminal;
 
 pub static mut KEYBOARD_STATE: KeyboardState = KeyboardState {
     shift_pressed: false,
@@ -35,21 +41,21 @@ pub extern "C" fn kernel_main() -> ! {
    ####   ##  ##
   ## ##       ##    Rust Kernel from scratch
  ##  ##     ###
- #######   ##       Version 0.2.1
+ #######   ##       Version 0.4.0
      ##   ##  ##
      ##   ######
 
 ");
     shell::init();
+    interrupts::initialize();
+    kprint!(LogLevel::Info, "IDT loaded; timer and keyboard interrupts enabled");
 
     loop {
-        unsafe {
-            get_input_handler().poll_and_handle_input(&mut KEYBOARD_STATE);
-        }
+        cpu::wait_for_interrupt();
     }
 }
 
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    loop {}
+fn panic(info: &PanicInfo) -> ! {
+    kpanic::rust_panic(info)
 }

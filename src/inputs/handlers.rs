@@ -26,10 +26,17 @@ impl InputHandler {
     pub fn poll_and_handle_input(&mut self, keyboard_state: &mut crate::ps2::keyboard::KeyboardState) {
         if keyboard_has_data() {
             let scancode = keyboard_read_scancode();
-            
-            if let Some(event) = keyboard_state.process_scancode(scancode) {
-                self.handle_key_event(event);
-            }
+            self.handle_scancode(keyboard_state, scancode);
+        }
+    }
+
+    pub fn handle_scancode(
+        &mut self,
+        keyboard_state: &mut crate::ps2::keyboard::KeyboardState,
+        scancode: u8,
+    ) {
+        if let Some(event) = keyboard_state.process_scancode(scancode) {
+            self.handle_key_event(event);
         }
     }
 
@@ -113,20 +120,7 @@ impl InputHandler {
                             kprint!(LogLevel::Info, "[INSERT pressed]");
                         },
                         KeyCode::Delete => {
-                            unsafe {
-                                if terminal.column < 79 {
-                                    for x in terminal.column..79 {
-                                        let next_index = terminal.row * 80 + x + 1;
-                                        let next_char = if x == 78 { 
-                                            b' ' 
-                                        } else { 
-                                            let next_entry = core::ptr::read_volatile(terminal.buffer.add(next_index));
-                                            (next_entry & 0xFF) as u8
-                                        };
-                                        terminal.put_entry_at(next_char, terminal.color, x, terminal.row);
-                                    }
-                                }
-                            }
+                            unsafe { terminal.delete_at_cursor() }
                         },
                         _ => {
                             // kprint!(LogLevel::Debug, "[{:?} pressed]", event.key);
@@ -254,5 +248,5 @@ impl InputHandler {
 static mut INPUT_HANDLER: InputHandler = InputHandler::new();
 
 pub fn get_input_handler() -> &'static mut InputHandler {
-    unsafe { &mut INPUT_HANDLER }
+    unsafe { &mut *core::ptr::addr_of_mut!(INPUT_HANDLER) }
 }

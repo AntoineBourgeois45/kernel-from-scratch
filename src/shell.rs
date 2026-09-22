@@ -1,7 +1,6 @@
-use core::arch::asm;
-
 use crate::inputs::io::outb;
 use crate::kprint;
+use crate::signals::{self, KernelSignal};
 use crate::stack;
 use crate::vga::terminal::{terminal, LogLevel};
 
@@ -67,7 +66,21 @@ impl Shell {
             "clear" => unsafe { terminal().clear_screen() },
             "halt" => halt(),
             "reboot" => reboot(),
+            "int3" => crate::interrupts::trigger_breakpoint(),
+            "softint" => signals::trigger_software_interrupt(),
+            "signal" => self.schedule_test_signal(),
+            "ticks" => kprint!(LogLevel::Info, "timer ticks: {}", signals::ticks()),
+            "panic" => panic!("panic requested from the kernel shell"),
+            "fault" => crate::interrupts::trigger_invalid_opcode(),
+            "gpf" => crate::interrupts::trigger_general_protection_fault(),
             _ => kprint!(LogLevel::Warning, "Unknown command: {}", cmd),
+        }
+    }
+
+    fn schedule_test_signal(&self) {
+        match signals::schedule_after(KernelSignal::Software, crate::pit::TIMER_HZ as u64) {
+            Ok(()) => kprint!(LogLevel::Info, "software signal scheduled in one second"),
+            Err(error) => kprint!(LogLevel::Error, "cannot schedule signal: {:?}", error),
         }
     }
 
@@ -78,20 +91,32 @@ impl Shell {
         kprint!(LogLevel::Info, "clear  - clear screen");
         kprint!(LogLevel::Info, "reboot - reboot via PS/2 controller");
         kprint!(LogLevel::Info, "halt   - halt CPU");
+        kprint!(LogLevel::Info, "int3   - test the breakpoint exception");
+        kprint!(LogLevel::Info, "softint- trigger the kernel software interrupt");
+        kprint!(LogLevel::Info, "signal - schedule a software signal in one second");
+        kprint!(LogLevel::Info, "ticks  - show the timer tick counter");
+        kprint!(LogLevel::Info, "panic  - test the global panic handler");
+        kprint!(LogLevel::Info, "fault  - trigger a fatal invalid-opcode exception");
+        kprint!(LogLevel::Info, "gpf    - trigger a general-protection fault");
     }
 }
 
 static mut SHELL: Shell = Shell::new();
 
 pub fn init() {
+    let _ = signals::register_callback(KernelSignal::Software, software_signal_callback);
     unsafe {
-        SHELL.prompt();
+        (&*core::ptr::addr_of!(SHELL)).prompt();
     }
+}
+
+fn software_signal_callback(_signal: KernelSignal) {
+    kprint!(LogLevel::Info, "software signal callback executed");
 }
 
 pub fn handle_char(ch: char) {
     unsafe {
-        SHELL.handle_char(ch);
+        (&mut *core::ptr::addr_of_mut!(SHELL)).handle_char(ch);
     }
 }
 
@@ -103,9 +128,5 @@ fn reboot() -> ! {
 }
 
 fn halt() -> ! {
-    loop {
-        unsafe {
-            asm!("hlt");
-        }
-    }
+    crate::cpu::halt_clean()
 }
