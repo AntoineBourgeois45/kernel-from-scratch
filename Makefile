@@ -59,31 +59,18 @@ $(INTERRUPTS_OBJ): boot/interrupts.asm
 
 $(KERNEL_BIN): $(BOOT_OBJ) $(INTERRUPTS_OBJ) $(RUST_SOURCES) Cargo.toml $(TARGET_JSON)
 	@echo "Building Rust kernel..."
-	cargo $(RUST_TOOLCHAIN) build --target $(TARGET_JSON) --release
+	cargo $(RUST_TOOLCHAIN) -Zjson-target-spec build --target $(TARGET_JSON) --release
 	@echo "Extracting .a into $(KERNEL_O)..."
 	@cp target/i386-unknown-none/release/lib$(TARGET).a $(KERNEL_O)
 	@echo "Linking -> $@ with $(LD)..."
 	$(LD) -m elf_i386 -T ${LINKER_SCRIPT} -o $@ $(BOOT_OBJ) $(INTERRUPTS_OBJ) $(KERNEL_O)
-	@size=$$($(SIZE_CMD) $(KERNEL_BIN)); \
-		echo "$(KERNEL_BIN) size: $$size bytes"; \
-		if [ $$size -gt $(SIZE_LIMIT) ]; then \
-			echo "Error: $(KERNEL_BIN) exceeds 10MB ($$size bytes)"; \
-			exit 1; \
-		fi
 
-$(NAME): $(KERNEL_BIN)
-	@echo "Creating ISO -> $@"
-	@rm -rf isodir
-	@mkdir -p isodir/boot/grub
-	@cp $(KERNEL_BIN) isodir/boot/$(KERNEL_BIN)
-	@cp boot/grub.cfg isodir/boot/grub/
-	@$(GRUB_MKRESCUE) -o $@ isodir
-	@size=$$($(SIZE_CMD) $(NAME)); \
-		echo "$(NAME) size: $$size bytes"; \
-		if [ $$size -gt $(SIZE_LIMIT) ]; then \
-			echo "Error: $(NAME) exceeds 10MB ($$size bytes)"; \
-			exit 1; \
-		fi
+@size=$$($(SIZE_CMD) $(NAME)); \
+	echo "$(NAME) size: $$size bytes"; \
+	if [ $$size -gt $(SIZE_LIMIT) ]; then \
+		echo "Error: $(NAME) exceeds 10MB ($$size bytes)"; \
+		exit 1; \
+	fi
 
 run: all
 	@echo "Launching QEMU -> $(NAME)"
